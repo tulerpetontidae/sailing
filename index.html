@@ -158,6 +158,27 @@
   .sl-bfx td.k{font-family:var(--mono);color:var(--muted);white-space:nowrap}
   .sl-bfx td.n{font-family:var(--mono);color:var(--muted);text-align:right;white-space:nowrap}
   .sl-bfx p{margin:8px 0 0;color:var(--muted);font-size:11.5px;max-width:70ch}
+  .sl-cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}
+  @media (max-width:860px){ .sl-cgrid{grid-template-columns:1fr 1fr} }
+  @media (max-width:480px){ .sl-cgrid{grid-template-columns:1fr} }
+  .sl-cp{border:1px solid var(--rule-2);border-radius:3px;padding:12px 14px}
+  .sl-cp h3{margin:0;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  .sl-cp .big{font-family:var(--disp);font-weight:800;font-size:28px;line-height:1;margin-top:8px;color:var(--ink)}
+  .sl-cp .big small{font-family:var(--body);font-weight:400;font-size:12px;color:var(--ink-2);margin-left:6px}
+  .sl-cp .ln{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);margin-top:8px;line-height:1.5}
+  .sl-cp .ln b{font-weight:500;color:var(--ink)}
+  .sl-hb{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 8px;margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink-2)}
+  .sl-hb i{display:block;height:8px;border-radius:2px}
+  .sl-sbar{display:flex;gap:2px;height:10px;margin-top:12px}
+  .sl-sbar i{display:block;height:100%;border-radius:2px}
+  .sl-skey{display:flex;flex-direction:column;gap:3px;margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--ink-2)}
+  .sl-skey span{display:flex;align-items:center;gap:6px}
+  .sl-skey i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .sl-fh{display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:12px}
+  .sl-fh > div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .sl-fh .col{width:72%;display:flex;flex-direction:column-reverse;gap:2px}
+  .sl-fh .col i{display:block;width:100%;height:9px;border-radius:2px}
+  .sl-fh span{font-family:var(--mono);font-size:9.5px;color:var(--muted)}
   /* small multiples */
   .sl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
   .sl-mini{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--paper)}
@@ -232,6 +253,13 @@
   </div>
 
   <div class="sl-card">
+    <h2 class="sl-h">Conditions</h2>
+    <p class="sl-p">What the sailing so far has been like: kinds of trip, boats, how exposed the water was, and how hard it blew.</p>
+    <div class="sl-cgrid" id="sl-cgrid"></div>
+    <div class="sl-bfx-slot"></div>
+  </div>
+
+  <div class="sl-card">
     <h2 class="sl-h">Where</h2>
     <p class="sl-p" id="sl-wheredesc"></p>
     <div class="sl-tabs" role="tablist" aria-label="Route view">
@@ -248,7 +276,7 @@
         <button type="button" id="sl-next" aria-label="Older sail">&#8250;</button>
       </div>
       <div class="sl-grid" id="sl-grid"></div>
-      <div class="sl-condkey" id="sl-condkey"></div><div class="sl-bfx-slot"></div></div>
+      <div class="sl-condkey" id="sl-condkey"></div></div>
     <div class="sl-pane" id="pane-heat" hidden><div class="sl-map" id="map-heat"></div>
       <div class="sl-legend"><span>Minutes on the water per hex</span><span class="sl-ramp" id="sl-hramp"></span><span id="sl-hmax"></span></div></div>
   </div>
@@ -256,7 +284,6 @@
   <div class="sl-card">
     <h2 class="sl-h">Logbook</h2>
     <p class="sl-p">Every day on the water, newest first: boat, role, who was aboard, conditions and notes.</p>
-    <div class="sl-bfx-slot"></div>
     <div class="sl-recs" id="sl-recs"></div>
   </div>
 
@@ -684,9 +711,9 @@
 
   /* every route, no basemap, drawn like a pencil sketch on the chart table.
      Animated: routes are drawn in one at a time in date order; older ones dim
-     step by step, and the oldest beyond the seven on show fades to nothing
+     step by step, and the oldest beyond the four on show fades to nothing
      before it's drawn again. Static for anyone who prefers reduced motion. */
-  var artTimer=null, ART_KEEP=7, ART_STEP=3200;
+  var artTimer=null, ART_KEEP=4, ART_STEP=3200;
   function drawArt(){
     clearInterval(artTimer);
     var el=document.getElementById("sl-art"), T=D.trips.filter(function(t){return t.poly;});
@@ -808,7 +835,46 @@
     Array.prototype.forEach.call(document.querySelectorAll(".sl-bfx-slot"),function(el){ el.innerHTML=html; });
   }
 
-  function drawAll(){ drawHead(); drawArt(); drawRoles(); drawCal(); drawRecs(); drawBfGuide(); }
+  /* ---------- conditions ---------- */
+  function drawConditions(){
+    var T=D.trips.filter(function(t){return t.date;});
+    // 1. trips
+    var multi=T.filter(function(t){return t.nights;}).length, after=T.filter(function(t){return t.afterSunset>0;});
+    var afterMin=after.reduce(function(x,t){return x+t.afterSunset;},0);
+    var p1='<div class="sl-cp"><h3>Trips</h3><div class="big">'+(T.length-multi)+'<small>day sails</small></div>'+
+      '<div class="ln"><b>'+multi+'</b> multi-day · <b>0</b> nights aboard</div>'+
+      '<div class="ln">After sunset: <b>'+fh(afterMin/60)+'</b> over '+after.length+' sail'+(after.length===1?'':'s')+'</div></div>';
+    // 2. boats, by hours
+    var boats={}, skMax=0;
+    T.forEach(function(t){ var k=t.type; boats[k]=boats[k]||{h:0,ft:t.ft}; boats[k].h+=t.hours||0; if(t.role==="skipper") skMax=Math.max(skMax,t.ft||0); });
+    var bk=Object.keys(boats).sort(function(a,b){return boats[b].h-boats[a].h;}), bmax=boats[bk[0]].h;
+    var p2='<div class="sl-cp"><h3>Boats</h3><div class="sl-hb">'+bk.map(function(k){
+        return '<span>'+k+'</span><i style="background:'+cssv("--r-mate")+';width:'+Math.max(4,boats[k].h/bmax*100)+'%"></i><span>'+boats[k].h.toFixed(1)+' h</span>'; }).join("")+
+      '</div><div class="ln">Largest skippered: <b>'+skMax+' ft</b></div></div>';
+    // 3. waters, by exposure - an ordered blue ramp, sheltered lightest
+    var W={harbour:0,bay:0,gate:0}; T.forEach(function(t){ for(var k in (t.waters||{})) W[k]+=t.waters[k]; });
+    var wt=W.harbour+W.bay+W.gate||1, WN={harbour:"Richardson Bay & harbour",bay:"open Bay",gate:"at / outside the Gate"}, WC={harbour:"--q2",bay:"--q4",gate:"--q6"};
+    var cmax=T.reduce(function(x,t){ var c=t.avg&&t.avg.current; return c&&c.max>x.kn?{kn:c.max,d:t.date}:x; },{kn:0,d:null});
+    var p3='<div class="sl-cp"><h3>Waters</h3><div class="sl-sbar">'+["harbour","bay","gate"].map(function(k){
+        return W[k]?'<i style="flex:'+W[k]+';background:'+cssv(WC[k])+'" title="'+WN[k]+': '+fh(W[k]/60)+'"></i>':''; }).join("")+'</div>'+
+      '<div class="sl-skey">'+["harbour","bay","gate"].map(function(k){
+        return '<span><i style="background:'+cssv(WC[k])+'"></i>'+WN[k]+' · '+Math.round(W[k]/wt*100)+'%</span>'; }).join("")+'</div>'+
+      (cmax.d?'<div class="ln">Strongest current: <b>'+cmax.kn+' kn</b> · '+fdate(cmax.d)+'</div>':'')+'</div>';
+    // 4. wind: sails by Beaufort force, skippered days solid, the rest outlined
+    var byF={}; T.forEach(function(t){ if(!t.wind) return; var f=bf(bfKn(t.wind)); (byF[f]=byF[f]||[]).push(t); });
+    var fs=Object.keys(byF).map(Number), f0=Math.max(1,Math.min.apply(null,fs)-1), f1=Math.min(8,Math.max.apply(null,fs)+1);
+    var sk=T.filter(function(t){return t.role==="skipper"&&t.wind;}).sort(function(a,b){return bfKn(b.wind)-bfKn(a.wind);})[0];
+    var cols=""; for(var f=f0;f<=f1;f++){ var list=(byF[f]||[]).slice().sort(function(a,b){return (a.role==="skipper")-(b.role==="skipper");});
+      cols+='<div><div class="col">'+list.map(function(t){ var c=cssv("--bf"+Math.max(1,Math.min(6,f-1)));
+          return '<i title="'+fdate(t.date)+' · '+RNAME[t.role]+'" style="'+(t.role==="skipper"?'background:'+c:'border:1.5px solid '+c+';box-sizing:border-box')+'"></i>'; }).join("")+
+        '</div><span>F'+f+'</span></div>'; }
+    var p4='<div class="sl-cp"><h3>Wind</h3><div class="sl-fh">'+cols+'</div>'+
+      '<div class="ln">One block per sail · solid = skipper</div>'+
+      (sk?'<div class="ln">Windiest as skipper: <b>F'+bf(bfKn(sk.wind))+'</b>, '+bfKn(sk.wind)+' kn · '+fdate(sk.date)+'</div>':'')+'</div>';
+    document.getElementById("sl-cgrid").innerHTML=p1+p2+p3+p4;
+  }
+
+  function drawAll(){ drawHead(); drawArt(); drawRoles(); drawCal(); drawConditions(); drawRecs(); drawBfGuide(); }
 
   /* ---------- theme ---------- */
   var sysDark=window.matchMedia?matchMedia("(prefers-color-scheme:dark)"):null;

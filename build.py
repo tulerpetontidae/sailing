@@ -181,7 +181,7 @@ def current_avg(samples, cache):
     if not sp: return None
     n = len(sp); top = max(ph, key=ph.get)
     phase = top if ph[top] / n >= 0.6 else "turning"
-    return {"kn": round(sum(sp) / n, 1), "toward": round((math.degrees(math.atan2(vx, vy)) + 360) % 360),
+    return {"kn": round(sum(sp) / n, 1), "max": round(max(sp), 1), "toward": round((math.degrees(math.atan2(vx, vy)) + 360) % 360),
             "phase": phase, "share": {k: round(v / n, 2) for k, v in ph.items()}}
 
 def wind_along(samples, cache):
@@ -220,6 +220,28 @@ def wind_along(samples, cache):
             "gust": round(max(gu)), "deg": round(deg), "from": compass(deg), "n": len(sp),
             "source": "Open-Meteo historical forecast, 15-minute, along the track"}
 
+def sunset_local(date, lat=37.86, lon=-122.48):
+    """Sunset (sun 0.833 deg below the horizon) as a local wall-clock datetime, from
+    the standard NOAA solar equations - good to a minute or two."""
+    from zoneinfo import ZoneInfo
+    d = dt.date.fromisoformat(date); n = d.timetuple().tm_yday
+    g = 2 * math.pi / 365 * (n - 1)
+    eqt = 229.18 * (0.000075 + 0.001868 * math.cos(g) - 0.032077 * math.sin(g)
+                    - 0.014615 * math.cos(2 * g) - 0.040849 * math.sin(2 * g))
+    decl = (0.006918 - 0.399912 * math.cos(g) + 0.070257 * math.sin(g) - 0.006758 * math.cos(2 * g)
+            + 0.000907 * math.sin(2 * g) - 0.002697 * math.cos(3 * g) + 0.00148 * math.sin(3 * g))
+    la = math.radians(lat)
+    ha = math.degrees(math.acos(math.cos(math.radians(90.833)) / (math.cos(la) * math.cos(decl)) - math.tan(la) * math.tan(decl)))
+    utc_min = 720 - 4 * (lon - ha) - eqt
+    utc = dt.datetime(d.year, d.month, d.day, tzinfo=dt.timezone.utc) + dt.timedelta(minutes=utc_min)
+    return utc.astimezone(ZoneInfo("America/Los_Angeles")).replace(tzinfo=None)
+
+def water_kind(lat, lon):
+    """Rough exposure classes: west of the Golden Gate Bridge counts as 'gate'."""
+    if lon < -122.4785 and lat < 37.835: return "gate"
+    if lat > 37.853 and lon < -122.474: return "harbour"
+    return "bay"
+
 def main():
     trips = json.load(open("trips.json"))
     cache = json.load(open("conditions.json")) if os.path.exists("conditions.json") else {}
@@ -240,6 +262,10 @@ def main():
             r["nm"] = round(float(tr["km"]) / KM_PER_NM, 1)
             r["poly"] = tr["poly"]
             pts = decode(tr["poly"])
+            wk = {}
+            for la, lo in pts: k_ = water_kind(la, lo); wk[k_] = wk.get(k_, 0) + 1
+            r["waters"] = wk                                       # minutes in each class
+            r["end"] = (start.replace(tzinfo=None) + dt.timedelta(seconds=hms(tr["el"]))).strftime("%H:%M")
             areas = {}
             for la, lo in pts: a = nearest_area(la, lo); areas[a] = areas.get(a, 0) + 1
             r["areas"] = dict(sorted(areas.items(), key=lambda kv: -kv[1]))
@@ -276,6 +302,13 @@ def main():
             r["avg"] = {"wind": {"kn": r["wind"].get("med", r["wind"].get("avg")), "deg": r["wind"]["deg"], "from": r["wind"]["from"]},
                         "current": current_avg(samples, cache)}
         out.append(r)
+    for r in out:
+        if r.get("date") and r.get("start") and r.get("hours"):
+            st_ = dt.datetime.strptime(r["date"] + " " + r["start"], "%Y-%m-%d %H:%M")
+            en_ = dt.datetime.strptime(r["date"] + " " + r["end"], "%Y-%m-%d %H:%M") if r.get("end") else st_ + dt.timedelta(hours=r["hours"])
+            ss = sunset_local(r["date"])
+            r["sunset"] = ss.strftime("%H:%M")
+            r["afterSunset"] = max(0, round((en_ - max(ss, st_)).total_seconds() / 60))
     out.sort(key=lambda r: (r.get("date") is None, r.get("date") or "", r["key"]))
     json.dump(cache, open("conditions.json", "w"), indent=1)
     data = {"generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
