@@ -8,9 +8,15 @@
   "title": "ASA course, day 1",
   "hours": 3.0,
   "approx": [
-   "hours"
+   "hours",
+   "start"
   ],
-  "note": "Tacks and docking."
+  "note": "Tacks and docking.",
+  "start": "12:00",
+  "near": [
+   37.858,
+   -122.477
+  ]
  },
  {
   "key": "course-2",
@@ -21,9 +27,15 @@
   "title": "ASA course, day 2",
   "hours": 3.0,
   "approx": [
-   "hours"
+   "hours",
+   "start"
   ],
-  "note": "Docking, tacks and gybes."
+  "note": "Docking, tacks and gybes.",
+  "start": "12:00",
+  "near": [
+   37.858,
+   -122.477
+  ]
  },
  {
   "key": "course-3",
@@ -34,9 +46,15 @@
   "title": "ASA course, day 3",
   "hours": 3.0,
   "approx": [
-   "hours"
+   "hours",
+   "start"
   ],
-  "note": "Tacks, gybes, reefing, man overboard."
+  "note": "Tacks, gybes, reefing, man overboard.",
+  "start": "12:00",
+  "near": [
+   37.858,
+   -122.477
+  ]
  },
  {
   "key": "2026-06-04",

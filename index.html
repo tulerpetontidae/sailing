@@ -321,49 +321,56 @@
   var QS=["--q1","--q2","--q3","--q4","--q5","--q6"];
   function qFor(h){ return h<=0?"--q0":QS[Math.min(5,Math.floor(h/1.25))]; }   // 75-minute steps, weekly totals up to 7.5 h
   function drawCal(){
-    /* one row of weeks (Monday-start) across the year, shaded by hours that week */
+    /* one row of weeks (Monday-start) across a sailing year: it opens on the first
+       week of the season the log starts in and runs 52 weeks (longer if needed),
+       split into meteorological seasons. A week belongs to the season of its Thursday. */
     var svg=document.getElementById("sl-cal");
-    var yr=dd(D.trips.filter(function(t){return t.date;})[0].date).getFullYear();
-    var jan1=new Date(yr,0,1), off=(jan1.getDay()+6)%7;
-    var days=(new Date(yr,11,31)-jan1)/864e5+1, nw=Math.ceil((days+off)/7);
-    var wk=[]; for(var i=0;i<nw;i++) wk.push({h:0,trips:[]});
-    D.trips.forEach(function(t){ if(!t.date) return;
-      var d=dd(t.date), i=Math.floor((Math.round((d-jan1)/864e5)+off)/7); wk[i].h+=t.hours||0; wk[i].trips.push(t); });
-    /* meteorological seasons: a wider gap and a hairline divider where one ends,
-       its name above the months. A week belongs to the season of its Thursday. */
+    var dated=D.trips.filter(function(t){return t.date;});
     var SEAS=["Winter","Winter","Spring","Spring","Spring","Summer","Summer","Summer","Autumn","Autumn","Autumn","Winter"];
+    var SSTART={Winter:11,Spring:2,Summer:5,Autumn:8};               // month each season opens
+    var f=dd(dated[0].date), sm=SSTART[SEAS[f.getMonth()]];
+    var sy=f.getFullYear()-((sm===11 && f.getMonth()<2)?1:0);
+    var s0=new Date(sy,sm,1); s0=new Date(sy,sm,1-((s0.getDay()+6)%7));    // Monday on/before the season opens
+    var last=dd(dated[dated.length-1].date);
+    var nw=Math.max(52, Math.floor((last-s0)/6048e5)+1);
+    function weekOf(d){ return Math.floor(Math.round((d-s0)/864e5)/7); }
+    function monday(i){ return new Date(s0.getFullYear(),s0.getMonth(),s0.getDate()+i*7); }
+    var wk=[]; for(var i=0;i<nw;i++) wk.push({h:0,trips:[]});
+    dated.forEach(function(t){ var i=weekOf(dd(t.date)); if(i>=0&&i<nw){ wk[i].h+=t.hours||0; wk[i].trips.push(t); } });
+    function seasonOf(i){ var th=monday(i); th.setDate(th.getDate()+3); return SEAS[th.getMonth()]; }
+
     var G=2,SG=12,T=28,H=20;
-    // size the weeks to the card, so the whole year fits without scrolling (narrowest 7 px)
-    var avail=svg.parentNode.clientWidth||900, nGaps=0, ps=null;
-    for(var q=0;q<nw;q++){ var th=new Date(yr,0,1-off+q*7+3), ss=SEAS[th.getFullYear()<yr?0:(th.getFullYear()>yr?11:th.getMonth())];
-      if(ps!==null && ss!==ps) nGaps++; ps=ss; }
+    var avail=svg.parentNode.clientWidth||900, nGaps=0;
+    for(i=1;i<nw;i++) if(seasonOf(i)!==seasonOf(i-1)) nGaps++;
     var C=Math.max(7, Math.min(18, Math.floor((avail-nGaps*SG)/nw)-G));
-    var xs=[], x0=0, prevS=null, seasonStarts=[];
+    var xs=[], x0=0, marks=[];
     for(i=0;i<nw;i++){
-      var thu=new Date(yr,0,1-off+i*7+3), se=SEAS[thu.getFullYear()<yr?0:(thu.getFullYear()>yr?11:thu.getMonth())];
-      if(prevS!==null && se!==prevS){ seasonStarts.push({x:x0+(SG-G)/2, divider:true}); x0+=SG; }
-      if(se!==prevS) seasonStarts.push({x:x0, name:se});
-      prevS=se; xs.push(x0); x0+=C+G;
+      var se=seasonOf(i);
+      if(i>0 && se!==seasonOf(i-1)){ marks.push({x:x0+(SG-G)/2, divider:true}); x0+=SG; }
+      if(i===0 || se!==seasonOf(i-1)) marks.push({x:x0, name:se});
+      xs.push(x0); x0+=C+G;
     }
     var W=x0;
     svg.setAttribute("viewBox","0 0 "+W+" "+(T+H)); svg.setAttribute("width",W); svg.setAttribute("height",T+H);
-    var s="", lastM=-1;
-    seasonStarts.forEach(function(p){
+    var s="";
+    marks.forEach(function(p){
       if(p.divider) s+='<line x1="'+p.x.toFixed(1)+'" y1="2" x2="'+p.x.toFixed(1)+'" y2="'+(T+H)+'" stroke="'+cssv("--rule")+'" stroke-width="1"/>';
       else s+='<text x="'+p.x+'" y="9" font-family="IBM Plex Mono,monospace" font-size="9" font-weight="500" letter-spacing="1.2" fill="'+cssv("--ink-2")+'">'+p.name.toUpperCase()+'</text>';
     });
+    var lastM=-1;
     for(i=0;i<nw;i++){
-      var mon=new Date(yr,0,1-off+i*7), x=xs[i], w=wk[i];
-      // month label on the first week that starts in that month
-      var m=mon.getFullYear()<yr?0:mon.getMonth();
-      if(m!==lastM && (mon.getFullYear()===yr || i===0)){ lastM=m;
-        s+='<text x="'+x+'" y="22" font-family="IBM Plex Mono,monospace" font-size="9" letter-spacing="1" fill="'+cssv("--muted")+'">'+MON[m].toUpperCase()+'</text>'; }
+      var mon=monday(i), x=xs[i], w=wk[i];
+      // month label on the first week whose Thursday is in that month; January carries the year
+      var th=new Date(mon); th.setDate(th.getDate()+3); var m=th.getMonth();
+      if(m!==lastM){ lastM=m;
+        s+='<text x="'+x+'" y="22" font-family="IBM Plex Mono,monospace" font-size="9" letter-spacing="1" fill="'+cssv("--muted")+'">'+
+          MON[m].toUpperCase()+(m===0?' ’'+String(th.getFullYear()).slice(2):'')+'</text>'; }
       var fill = w.trips.length ? (w.h ? qFor(w.h) : "--q1") : "--q0";
       s+='<rect x="'+x+'" y="'+T+'" width="'+C+'" height="'+H+'" rx="2" fill="'+cssv(fill)+'"'+(w.trips.length?' data-w="'+i+'" style="cursor:pointer"':'')+'/>';
     }
     svg.innerHTML=s;
     svg.onmousemove=function(e){ var i=e.target.getAttribute&&e.target.getAttribute("data-w");
-      if(i==null) return hideTip(); var w=wk[+i], mon=new Date(yr,0,1-off+(+i)*7);
+      if(i==null) return hideTip(); var w=wk[+i], mon=monday(+i);
       showTip('<b>Week of '+mon.getDate()+' '+MON[mon.getMonth()]+'</b><br>'+w.trips.length+' day'+(w.trips.length===1?'':'s')+
         (w.h?' · '+fh(w.h):'')+'<br>'+w.trips.map(function(t){ return fdate(t.date).slice(0,3)+' '+RNAME[t.role].toLowerCase(); }).join(', '),
         e.clientX,e.clientY); };
@@ -507,7 +514,7 @@
   }
 
   function buildTrips(){
-    var g=document.getElementById("sl-grid"), list=D.trips.filter(function(t){return t.date && (t.poly||t.cond);}).slice().reverse();
+    var g=document.getElementById("sl-grid"), list=D.trips.filter(function(t){return t.date && (t.poly||(t.cond && !t.approx));}).slice().reverse();
     g.innerHTML=list.map(function(t){
       return '<div class="sl-mini">'+(t.poly?'<div class="m" id="mini-'+t.key+'"></div>':'<div class="sl-nomap">no track recorded</div>')+
         '<div class="c"><div class="r1"><div><b>'+fdate(t.date)+'</b> · '+RNAME[t.role]+'</div>'+(t.wind?bfChip(t.wind,false):'')+'</div>'+
@@ -598,7 +605,7 @@
     document.getElementById("sl-recs").innerHTML=list.map(function(t){
       var area=t.areas?Object.keys(t.areas).slice(0,2).join(", "):"";
       return '<div class="sl-rec'+(t.date?'':' undated')+'">'+
-        '<div class="d">'+(no[t.key]?'<span class="no">Sail '+no[t.key]+'</span>':'')+(t.date?fdate(t.date)+'<small>'+dd(t.date).getFullYear()+(t.start?' · '+t.start:'')+'</small>':'date to add<small>2026</small>')+
+        '<div class="d">'+(no[t.key]?'<span class="no">Sail '+no[t.key]+'</span>':'')+(t.date?fdate(t.date)+'<small>'+dd(t.date).getFullYear()+(t.start?' · '+((t.approx||[]).indexOf("start")>=0?'~':'')+t.start:'')+'</small>':'date to add<small>2026</small>')+
           (cum[t.key]?'<span class="cum">Σ '+Math.round(cum[t.key])+' h on water</span>':'')+'</div>'+
         '<div class="t"><b>'+(t.title||boatName(t))+'</b><span class="role"><i style="background:'+rc(t.role)+'"></i>'+RNAME[t.role]+
           ((t.assumed||[]).indexOf("role")>=0?' (assumed)':'')+'</span>'+
@@ -614,11 +621,17 @@
       '<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> for each sail\'s time and place; '+
       'tidal currents are <a href="https://tidesandcurrents.noaa.gov/" target="_blank" rel="noopener">NOAA</a> predictions at the nearest station, '+
       'interpolated between slack and maximum. Both are modelled, and '+
-      'the Bay\'s local winds often run stronger than the model says. Built '+D.generated+'.';
+      'the Bay\'s local winds often run stronger than the model says. Header shoreline &copy; '+
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors. Built '+D.generated+'.';
   }
 
-  /* every route, no basemap, drawn like a pencil sketch on the chart table */
+  /* every route, no basemap, drawn like a pencil sketch on the chart table.
+     Animated: routes are drawn in one at a time in date order; older ones dim
+     step by step, and the oldest beyond the seven on show fades to nothing
+     before it's drawn again. Static for anyone who prefers reduced motion. */
+  var artTimer=null, ART_KEEP=7, ART_STEP=3200;
   function drawArt(){
+    clearInterval(artTimer);
     var el=document.getElementById("sl-art"), T=D.trips.filter(function(t){return t.poly;});
     if(!T.length){ el.innerHTML=""; return; }
     var k=Math.cos(37.85*Math.PI/180), all=[];
@@ -630,12 +643,46 @@
     var ox=W-pad-(x1-x0)*sc, oy=(H-(y1-y0)*sc)/2;          // right-aligned, vertically centred
     function P(p){ return ((p[1]*k-x0)*sc+ox).toFixed(1)+","+((-p[0]-y0)*sc+oy).toFixed(1); }
     var fg=cssv("--hero-fg"), s='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMaxYMid meet">';
+    // the shore underneath: a thick, faint line, so the routes still lead. It fades
+    // in from the left, so it dissolves rather than running into the headline.
+    s+='<defs><linearGradient id="slArtFade" x1="0" x2="1" y1="0" y2="0">'+
+       '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".38" stop-color="#fff" stop-opacity="1"/></linearGradient>'+
+       '<mask id="slArtMask" maskUnits="userSpaceOnUse" x="0" y="0" width="'+W+'" height="'+H+'">'+
+       '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="url(#slArtFade)"/></mask></defs><g mask="url(#slArtMask)">';
+    (D.coast||[]).forEach(function(c){
+      s+='<polyline class="coast" points="'+chaikin(c,2).map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" opacity=".13"/>';
+    });
+    s+='</g>';
     T.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t,i,arr){
-      var op=(0.22+0.5*(i/Math.max(1,arr.length-1))).toFixed(2);           // older lines quieter
-      s+='<polyline points="'+t._art.map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round" opacity="'+op+'"/>';
+      var op=(0.22+0.5*(i/Math.max(1,arr.length-1))).toFixed(2);           // older lines quieter (static version)
+      s+='<polyline points="'+t._art.map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+op+'"/>';
     });
     if(D.harbour) s+='<circle cx="'+P([D.harbour.lat,D.harbour.lon]).split(",")[0]+'" cy="'+P([D.harbour.lat,D.harbour.lon]).split(",")[1]+'" r="3" fill="'+fg+'"/>';
     el.innerHTML=s+'</svg>';
+
+    var reduce=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var lines=Array.prototype.slice.call(el.querySelectorAll("polyline:not(.coast)"));
+    if(reduce || lines.length<2) return;
+    lines.forEach(function(l){ var L=l.getTotalLength(); l._L=L;
+      l.style.transition="none"; l.style.strokeDasharray=L; l.style.strokeDashoffset=L; l.style.opacity=0; });
+    var shown=[], next=0;
+    function step(){
+      if(document.hidden) return;                       // don't run the show to an empty room
+      var l=lines[next % lines.length]; next++;
+      shown=shown.filter(function(x){ return x!==l; });
+      // rewind it, then draw it in at full strength
+      l.style.transition="none"; l.style.strokeDashoffset=l._L; l.style.opacity=.9; l.getBoundingClientRect();
+      l.style.transition="stroke-dashoffset 2.6s ease-in-out, opacity 2.8s ease";
+      l.style.strokeDashoffset=0;
+      shown.push(l);
+      // everyone older steps down; past the seventh, fade out completely
+      var n=shown.length;
+      shown.forEach(function(x,i){ if(x===l) return; var age=n-1-i;
+        x.style.transition="opacity 2.8s ease";
+        x.style.opacity = age>=ART_KEEP ? 0 : (0.9-0.72*age/(ART_KEEP-1)).toFixed(2); });
+      if(shown.length>ART_KEEP) shown.shift();
+    }
+    step(); artTimer=setInterval(step, ART_STEP);
   }
 
   function drawAll(){ drawHead(); drawArt(); drawRoles(); drawCal(); drawRecs(); }

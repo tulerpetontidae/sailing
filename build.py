@@ -238,6 +238,9 @@ def main():
     json.dump(cache, open("conditions.json", "w"), indent=1)
     data = {"generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "areas": [{"name": a[0], "lat": a[1], "lon": a[2]} for a in AREAS], "harbour": harbour, "trips": out}
+    # a rough shoreline for the header sketch (OpenStreetMap coastline, pre-simplified)
+    if os.path.exists("coast.json"):
+        data["coast"] = json.load(open("coast.json"))["lines"]
     json.dump(data, open("data.json", "w"), ensure_ascii=False, separators=(",", ":"))
     dated = [r for r in out if r.get("date") and r.get("hours")]
     print("%d days (%d with records), %.1f h, %.1f nm" % (len(out), len(dated),
