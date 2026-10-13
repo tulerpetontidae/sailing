@@ -1,0 +1,159 @@
+[
+ {
+  "key": "course-1",
+  "date": "2026-06-01",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "student",
+  "title": "ASA course, day 1",
+  "hours": 3.0,
+  "approx": [
+   "hours"
+  ],
+  "note": "Tacks and docking."
+ },
+ {
+  "key": "course-2",
+  "date": "2026-06-02",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "student",
+  "title": "ASA course, day 2",
+  "hours": 3.0,
+  "approx": [
+   "hours"
+  ],
+  "note": "Docking, tacks and gybes."
+ },
+ {
+  "key": "course-3",
+  "date": "2026-06-03",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "student",
+  "title": "ASA course, day 3",
+  "hours": 3.0,
+  "approx": [
+   "hours"
+  ],
+  "note": "Tacks, gybes, reefing, man overboard."
+ },
+ {
+  "key": "2026-06-04",
+  "strava": 18789964939,
+  "type": "Catalina 32",
+  "ft": 32,
+  "role": "student",
+  "title": "ASA course, day 4",
+  "note": "Man overboard, reefing, tacks and gybes; anchoring off Tiburon. Good wind!",
+  "anchored": true
+ },
+ {
+  "key": "2026-06-05",
+  "strava": 18802022851,
+  "type": "Catalina 32",
+  "ft": 32,
+  "role": "student",
+  "title": "ASA course, day 5",
+  "note": "Licensed: ASA 101 and 103."
+ },
+ {
+  "key": "2026-06-09",
+  "strava": 18859516515,
+  "boat": "Cohitta",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "skipper",
+  "club": "Sunset sail",
+  "aboard": 3,
+  "note": "Struggled against the wind and tide.",
+  "reef": 0,
+  "jib": 1.0,
+  "trimNote": "mostly full sail"
+ },
+ {
+  "key": "2026-06-11",
+  "strava": 18885904349,
+  "boat": "Cohitta",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "mate",
+  "club": "Co-skipper visit",
+  "aboard": 4,
+  "note": "Wind up to 20 kn with gusts and big waves. Reduced crew, so solo line handling. Motorsailed back: the tidal current was overpowering close-hauled.",
+  "aboardNote": "2 experienced, 2 passengers",
+  "reef": 2,
+  "jib": 0.5
+ },
+ {
+  "key": "2026-06-25",
+  "strava": 19069336105,
+  "boat": "Cohitta",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "skipper",
+  "club": "Sunset sail",
+  "aboard": 3,
+  "reef": 1,
+  "jib": 0.75,
+  "trimNote": "jib adjusted"
+ },
+ {
+  "key": "2026-07-23",
+  "strava": 19440504020,
+  "boat": "Mo'orea",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "mate",
+  "club": "Co-skipper visit",
+  "aboard": 3,
+  "reef": 1,
+  "jib": null
+ },
+ {
+  "key": "2026-07-28",
+  "strava": 19509622036,
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "crew",
+  "aboard": 4,
+  "note": "The battery died and took the engine with it. About an hour under sail alone with no bail-out option, until another boat helped restart it.",
+  "boat": "Mo'orea",
+  "aboardNote": "3 experienced, 1 capable passenger",
+  "reef": 1,
+  "jib": 1.0
+ },
+ {
+  "key": "2026-08-14",
+  "strava": 19746541582,
+  "boat": "Sophia",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "skipper",
+  "club": "Sunset sail",
+  "aboard": 3,
+  "reef": 0,
+  "jib": 1.0,
+  "harbour": true
+ },
+ {
+  "key": "2026-08-21",
+  "date": "2026-08-21",
+  "start": "16:00",
+  "hours": 2.0,
+  "nm": 5.0,
+  "boat": "Cohitta",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "skipper",
+  "club": "Sunset sail",
+  "aboard": 2,
+  "near": [
+   37.858,
+   -122.477
+  ],
+  "note": "Two aboard, one a first-time sailor. Practised tacks and gybes. Full sail, good conditions.",
+  "reef": 0,
+  "jib": 1.0
+ }
+]
