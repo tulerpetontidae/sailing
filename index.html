@@ -81,6 +81,13 @@
   .sl-barlab{display:flex;gap:2px;margin-top:8px}
   .sl-barlab div{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);overflow:hidden;white-space:nowrap}
   .sl-barlab b{display:block;font-weight:500;color:var(--ink)}
+  .sl-barlab .sw{display:none;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:baseline}
+  /* on narrow screens the segments are too thin to label in place: list the roles in a grid instead */
+  @media (max-width:640px){
+    .sl-barlab{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+    .sl-barlab div{flex:none!important;white-space:normal}
+    .sl-barlab .sw{display:inline-block}
+  }
   .sl-key{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-right:16px}
   .sl-key i{width:10px;height:10px;border-radius:2px;display:inline-block}
 
@@ -304,7 +311,7 @@
     var bar="", lab="";
     ROLES.forEach(function(r){ if(!by[r]) return; var pc=by[r]/tot*100;
       bar+='<i style="flex:'+by[r]+';background:'+rc(r)+'" data-r="'+r+'"></i>';
-      lab+='<div style="flex:'+by[r]+'"><b>'+RNAME[r]+'</b>'+by[r].toFixed(1)+'h · '+Math.round(pc)+'%</div>'; });
+      lab+='<div style="flex:'+by[r]+'"><b><i class="sw" style="background:'+rc(r)+'"></i>'+RNAME[r]+'</b>'+by[r].toFixed(1)+'h · '+Math.round(pc)+'%</div>'; });
     var b=document.getElementById("sl-bar"); b.innerHTML=bar;
     document.getElementById("sl-barlab").innerHTML=lab;
     b.onmousemove=function(e){ var r=e.target.getAttribute("data-r"); if(!r) return hideTip();
@@ -635,8 +642,60 @@
     var el=document.getElementById("sl-art"), T=D.trips.filter(function(t){return t.poly;});
     if(!T.length){ el.innerHTML=""; return; }
     var k=Math.cos(37.85*Math.PI/180), all=[];
-    // a sketch, not a record: simplify hard (250 m, which irons out short tacks) and round off with four passes
-    T.forEach(function(t){ t._art=chaikin(simplify(decode(t.poly),250),4); all=all.concat(t._art); });
+    // a sketch, not a record: every route starts and ends at the harbour (the watch was often
+    // switched on a few minutes out), then simplify hard (250 m irons out short tacks) and round
+    // off with four passes, so the invented stretch blends into the real one
+    /* The connector from the dock follows water that was really sailed: every track that
+       ends at the harbour carries a genuine path into it. For a track that starts out in
+       the Bay, find the closest point on any of those homecoming paths and follow that
+       path from the dock back out to it, so the invented stretch never cuts the shore. */
+    var H0=D.harbour?[D.harbour.lat,D.harbour.lon]:null, KX=111320*Math.cos(37.85*Math.PI/180);
+    function dm(a,b){ return Math.hypot((a[0]-b[0])*110540,(a[1]-b[1])*KX); }
+    var homeward=T.map(function(t){ return {t:t, p:decode(t.poly)}; }).filter(function(h){ return H0 && dm(h.p[h.p.length-1],H0)<150; });
+    function legs(t,pts){
+      if(!H0) return {out:[],body:pts,back:[]};
+      var out=[], back=[];
+      if(dm(pts[0],H0)>150) out=best_path(t,pts[0]);
+      if(dm(pts[pts.length-1],H0)>150) back=best_path(t,pts[pts.length-1]).slice().reverse();
+      return {out:out, body:pts, back:back};
+    }
+    function best_path(self,target){
+      var best=null;
+      // other sails only, and only their last 40% - the run home, not the sail itself
+      homeward.forEach(function(h){ if(h.t===self) return; var p=h.p;
+        for(var i=Math.floor(p.length*0.6);i<p.length;i++){ var d=dm(p[i],target); if(!best||d<best.d) best={d:d,p:p,i:i}; } });
+      if(!best) return [H0];
+      // the homecoming path from its closest point to the dock, reversed: dock first
+      return best.p.slice(best.i).concat([H0]).reverse();
+    }
+    /* Shore-aware simplification: Douglas-Peucker, except a chord is only accepted if it
+       doesn't cross the coastline - otherwise keep splitting. Corner-cutting afterwards stays
+       inside each kept segment's neighbourhood, so the lines keep to the water. */
+    var COAST=(D.coast||[]).map(function(c){ return c; });
+    function crossesShore(a,b){
+      function o(p,q,r){ return Math.sign((q[1]-p[1])*(r[0]-q[0])-(q[0]-p[0])*(r[1]-q[1])); }
+      var x0=Math.min(a[1],b[1]),x1=Math.max(a[1],b[1]),y0=Math.min(a[0],b[0]),y1=Math.max(a[0],b[0]);
+      for(var c=0;c<COAST.length;c++){ var L=COAST[c];
+        for(var i=1;i<L.length;i++){ var p=L[i-1],q=L[i];
+          if(Math.max(p[1],q[1])<x0||Math.min(p[1],q[1])>x1||Math.max(p[0],q[0])<y0||Math.min(p[0],q[0])>y1) continue;
+          if(o(a,b,p)!==o(a,b,q) && o(p,q,a)!==o(p,q,b)) return true; } }
+      return false;
+    }
+    function simplifyShore(pts,tol){
+      if(pts.length<3) return pts;
+      var k=111320*Math.cos(37.85*Math.PI/180), P=pts.map(function(p){return [p[1]*k, p[0]*110540];});
+      var keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1; var st=[[0,pts.length-1]];
+      while(st.length){ var se=st.pop(), a=se[0], b=se[1]; if(b-a<2) continue;
+        var ax=P[a][0], ay=P[a][1], dx=P[b][0]-ax, dy=P[b][1]-ay, L2=dx*dx+dy*dy, dmax=0, idx=-1;
+        for(var i=a+1;i<b;i++){ var t=L2?((P[i][0]-ax)*dx+(P[i][1]-ay)*dy)/L2:0; t=Math.max(0,Math.min(1,t));
+          var ex=ax+t*dx-P[i][0], ey=ay+t*dy-P[i][1], d=ex*ex+ey*ey; if(d>dmax){ dmax=d; idx=i; } }
+        if(dmax>tol*tol || crossesShore(pts[a],pts[b])){ if(idx<0) idx=(a+b)>>1; keep[idx]=1; st.push([a,idx],[idx,b]); }
+      }
+      return pts.filter(function(_,i){ return keep[i]; });
+    }
+    function artLine(t,pts){ var L=legs(t,pts);
+      return chaikin([].concat(simplifyShore(L.out,40), simplifyShore(L.body,250), simplifyShore(L.back,40)),4); }
+    T.forEach(function(t){ var L=legs(t,decode(t.poly)); t._legs=L; t._art=artLine(t,decode(t.poly)); all=all.concat(t._art); });
     var x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
     all.forEach(function(p){ var x=p[1]*k, y=-p[0]; x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); });
     var W=440,H=220,pad=8, sc=Math.min((W-2*pad)/(x1-x0),(H-2*pad)/(y1-y0));
