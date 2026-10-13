@@ -184,6 +184,42 @@ def current_avg(samples, cache):
     return {"kn": round(sum(sp) / n, 1), "toward": round((math.degrees(math.atan2(vx, vy)) + 360) % 360),
             "phase": phase, "share": {k: round(v / n, 2) for k, v in ph.items()}}
 
+def wind_along(samples, cache):
+    """Wind the boat actually sailed through: one model value every 15 minutes at
+    wherever the boat was then. samples: (datetime, lat, lon). Model cells are
+    ~3 km, so positions are grouped into 0.03-degree cells and each cell-day is
+    fetched once. Returns median and 10th/90th percentiles of the 15-minute
+    means, the peak 15-minute mean, the strongest gust and the mean direction."""
+    sp, gu, di = [], [], []
+    for when, lat, lon in samples:
+        clat, clon = round(round(lat / 0.03) * 0.03, 3), round(round(lon / 0.03) * 0.03, 3)
+        ck = "w15:%s:%.3f:%.3f" % (when.strftime("%Y-%m-%d"), clat, clon)
+        if ck not in cache:
+            q = urllib.parse.urlencode({"latitude": clat, "longitude": clon,
+                "start_date": when.strftime("%Y-%m-%d"), "end_date": when.strftime("%Y-%m-%d"),
+                "minutely_15": "wind_speed_10m,wind_gusts_10m,wind_direction_10m", "wind_speed_unit": "kn",
+                "timezone": "America/Los_Angeles"})
+            m = json.load(urllib.request.urlopen(
+                "https://historical-forecast-api.open-meteo.com/v1/forecast?" + q, timeout=30))["minutely_15"]
+            cache[ck] = {"t": [x[11:] for x in m["time"]], "s": m["wind_speed_10m"],
+                         "g": m["wind_gusts_10m"], "d": m["wind_direction_10m"]}
+        c = cache[ck]
+        slot = "%02d:%02d" % (when.hour, (when.minute // 15) * 15)
+        if slot in c["t"]:
+            i = c["t"].index(slot)
+            if c["s"][i] is not None:
+                sp.append(c["s"][i]); gu.append(c["g"][i] or 0); di.append(c["d"][i] or 0)
+    if not sp: return None
+    q = sorted(sp)
+    def pct(f):
+        k = (len(q) - 1) * f; lo = int(k); hi = min(lo + 1, len(q) - 1)
+        return q[lo] + (q[hi] - q[lo]) * (k - lo)
+    sx = sum(math.sin(math.radians(x)) for x in di); cx = sum(math.cos(math.radians(x)) for x in di)
+    deg = (math.degrees(math.atan2(sx, cx)) + 360) % 360
+    return {"p10": round(pct(.1)), "med": round(pct(.5)), "p90": round(pct(.9)), "max": round(max(sp)),
+            "gust": round(max(gu)), "deg": round(deg), "from": compass(deg), "n": len(sp),
+            "source": "Open-Meteo historical forecast, 15-minute, along the track"}
+
 def main():
     trips = json.load(open("trips.json"))
     cache = json.load(open("conditions.json")) if os.path.exists("conditions.json") else {}
@@ -221,7 +257,10 @@ def main():
             r["cond"] = r["mid"]
             samples = [(start.replace(tzinfo=None) + dt.timedelta(minutes=i), pts[i][0], pts[i][1])
                        for i in range(0, len(pts), 10)]
-            r["avg"] = {"wind": {"kn": r["wind"]["avg"], "deg": r["wind"]["deg"], "from": r["wind"]["from"]},
+            w15 = wind_along([(start.replace(tzinfo=None) + dt.timedelta(minutes=i), pts[i][0], pts[i][1])
+                              for i in range(0, len(pts), 15)], cache)
+            if w15: r["wind"] = w15
+            r["avg"] = {"wind": {"kn": r["wind"].get("med", r["wind"].get("avg")), "deg": r["wind"]["deg"], "from": r["wind"]["from"]},
                         "current": current_avg(samples, cache)}
         if r.get("date") and r.get("near") and not r.get("wind"):     # untracked day with a known place
             r["wind"], mw = wind_trip(r["date"], r["start"], r["hours"] * 3600, r["hours"] * 1800,
@@ -231,7 +270,10 @@ def main():
                          "current": current_at(mwhen, r["near"][0], r["near"][1], cache)}
             t0 = dt.datetime.strptime(r["date"] + " " + r["start"], "%Y-%m-%d %H:%M")
             samples = [(t0 + dt.timedelta(minutes=m), r["near"][0], r["near"][1]) for m in range(0, int(r["hours"] * 60) + 1, 10)]
-            r["avg"] = {"wind": {"kn": r["wind"]["avg"], "deg": r["wind"]["deg"], "from": r["wind"]["from"]},
+            w15 = wind_along([(t0 + dt.timedelta(minutes=m), r["near"][0], r["near"][1])
+                              for m in range(0, int(r["hours"] * 60) + 1, 15)], cache)
+            if w15: r["wind"] = w15
+            r["avg"] = {"wind": {"kn": r["wind"].get("med", r["wind"].get("avg")), "deg": r["wind"]["deg"], "from": r["wind"]["from"]},
                         "current": current_avg(samples, cache)}
         out.append(r)
     out.sort(key=lambda r: (r.get("date") is None, r.get("date") or "", r["key"]))
@@ -248,8 +290,9 @@ def main():
     for r in dated:
         m = r.get("avg") or {}; mw = m.get("wind") or {}; mc = m.get("current") or {}
         w = r.get("wind") or {}
-        print("  %s %-8s %-8s reef %s jib %-4s | wind avg %s max %s gust %s from %s | mid %s kn | current %s %s" % (
+        print("  %s %-8s %-8s reef %s jib %-4s | wind med %s (p10 %s, p90 %s) peak %s gust %s from %s, n=%s | current %s %s" % (
             r["date"], r["role"], r.get("boat") or r["type"], r.get("reef"), r.get("jib"),
-            w.get("avg"), w.get("max"), w.get("gust"), w.get("from"), mw.get("kn"), mc.get("phase"), mc.get("kn")))
+            w.get("med"), w.get("p10"), w.get("p90"), w.get("max"), w.get("gust"), w.get("from"), w.get("n"),
+            mc.get("phase"), mc.get("kn")))
 
 main()

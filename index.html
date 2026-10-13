@@ -145,6 +145,19 @@
     #pane-trips .sl-grid::-webkit-scrollbar{display:none}
     #pane-trips .sl-grid .sl-mini{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always}
   }
+  .sl-bfx{margin-top:12px;font-size:12px;color:var(--ink-2)}
+  .sl-bfx summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--ink-2);list-style:none;display:inline-flex;align-items:center;gap:6px}
+  .sl-bfx summary::-webkit-details-marker{display:none}
+  .sl-bfx summary::before{content:"+";display:inline-flex;width:14px;height:14px;align-items:center;justify-content:center;
+    border:1px solid var(--rule);border-radius:3px;font-size:10px;line-height:1}
+  .sl-bfx[open] summary::before{content:"\2212"}
+  .sl-bfx table{border-collapse:collapse;margin-top:10px;width:100%;max-width:640px}
+  .sl-bfx td{padding:4px 10px 4px 0;border-bottom:1px solid var(--rule-2);vertical-align:middle}
+  .sl-bfx td.f{font-family:var(--mono);font-weight:500;color:var(--ink);white-space:nowrap}
+  .sl-bfx td.f svg{display:inline-block;vertical-align:middle;margin-right:4px}
+  .sl-bfx td.k{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+  .sl-bfx td.n{font-family:var(--mono);color:var(--muted);text-align:right;white-space:nowrap}
+  .sl-bfx p{margin:8px 0 0;color:var(--muted);font-size:11.5px;max-width:70ch}
   /* small multiples */
   .sl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
   .sl-mini{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--paper)}
@@ -235,7 +248,7 @@
         <button type="button" id="sl-next" aria-label="Older sail">&#8250;</button>
       </div>
       <div class="sl-grid" id="sl-grid"></div>
-      <div class="sl-condkey" id="sl-condkey"></div></div>
+      <div class="sl-condkey" id="sl-condkey"></div><div class="sl-bfx-slot"></div></div>
     <div class="sl-pane" id="pane-heat" hidden><div class="sl-map" id="map-heat"></div>
       <div class="sl-legend"><span>Minutes on the water per hex</span><span class="sl-ramp" id="sl-hramp"></span><span id="sl-hmax"></span></div></div>
   </div>
@@ -243,6 +256,7 @@
   <div class="sl-card">
     <h2 class="sl-h">Logbook</h2>
     <p class="sl-p">Every day on the water, newest first: boat, role, who was aboard, conditions and notes.</p>
+    <div class="sl-bfx-slot"></div>
     <div class="sl-recs" id="sl-recs"></div>
   </div>
 
@@ -277,7 +291,7 @@
   function tripTip(t){
     return '<b>'+fdate(t.date)+'</b> · '+RNAME[t.role]+'<br>'+(t.title||boatName(t))+'<br>'+
       (t.hours ? (t.approx?'≈ ':'')+fh(t.hours)+(t.nm!=null?' · '+t.nm.toFixed(1)+' nm':'') : 'no track')+
-      (t.wind?'<br>wind '+t.wind.avg+' kn '+t.wind.from+', gusts '+t.wind.gust:'');
+      (t.wind?'<br>wind '+(t.wind.med!=null?t.wind.med:t.wind.avg)+' kn '+t.wind.from+(t.wind.p10!=null?' ('+t.wind.p10+'–'+t.wind.p90+')':'')+', gusts '+t.wind.gust:'');
   }
 
   /* ---------- Beaufort ---------- */
@@ -293,9 +307,10 @@
         (i<=f ? cssv("--bf"+Math.max(1,Math.min(6,i-1))) : cssv("--q0"))+'"/>'; }
     return s+'</svg>';
   }
+  function bfKn(w){ return w.p90!=null ? w.p90 : w.max; }      // windiest 10% of the sail
   function bfChip(w,long){
-    var f=bf(w.max);
-    return '<span class="sl-bf" title="Beaufort force '+f+', '+BF_N[f]+': peak hourly wind '+w.max+' kn">'+bfLadder(f)+
+    var f=bf(bfKn(w));
+    return '<span class="sl-bf" title="Beaufort force '+f+', '+BF_N[f]+': windiest tenth of the sail, '+bfKn(w)+' kn">'+bfLadder(f)+
       '<b>F'+f+'</b>'+(long?' '+BF_N[f]:'')+'</span>';
   }
 
@@ -534,7 +549,8 @@
   function condRow(t){
     var c=t.avg||{}, w=c.wind, cu=c.current;
     return '<div class="sl-condrow">'+
-      '<div class="cc">'+(w?glyphBox(barb(w.deg,w.kn))+'<div><b>'+w.kn+' kn</b><small>'+w.from+'</small></div>':'')+'</div>'+
+      '<div class="cc">'+(w?glyphBox(barb(w.deg,w.kn))+'<div><b>'+w.kn+' kn '+w.from+'</b><small>'+
+        (t.wind&&t.wind.p10!=null?t.wind.p10+'–'+t.wind.p90+' kn':'')+'</small></div>':'')+'</div>'+
       '<div class="cc">'+(cu?glyphBox(currentArrow(cu))+'<div><b>'+(cu.phase==="slack"?'slack':cu.kn+' kn')+'</b><small>'+(cu.phase==="slack"?'current':cu.phase)+'</small></div>':'')+'</div>'+
     '</div>';
   }
@@ -549,9 +565,9 @@
     // two legend groups that wrap as whole units, so the four roles never split apart
     document.getElementById("sl-condkey").innerHTML=
       '<div class="sl-legrp"><span class="lab">Averaged over the sail</span>'+
-        '<span>'+glyphBox(barb(270,15))+'wind (into the barb · 10 kn a tick)</span>'+
+        '<span>'+glyphBox(barb(270,15))+'wind: median, with its 10–90% range below</span>'+
         '<span>'+glyphBox(currentArrow({phase:"flood",kn:2,toward:90}))+'current (longer = faster)</span>'+
-        '<span>'+bfLadder(4)+'Beaufort force (peak)</span></div>'+
+        '<span>'+bfLadder(4)+'Beaufort force, windiest 10%</span></div>'+
       '<div class="sl-legrp nowrap"><span class="lab">Route</span>'+
         ROLES.map(function(r){ return '<span><i class="sw" style="background:'+rc(r)+'"></i>'+RNAME[r].toLowerCase()+'</span>'; }).join("")+'</div>';
     var cards=g.children, prev=document.getElementById("sl-prev"), next=document.getElementById("sl-next"), pos=document.getElementById("sl-pos");
@@ -621,7 +637,7 @@
   var VIEW="all";
   var VDESC={
     all:"Every tracked sail on one chart. Skippered days in navy; the newest route is drawn strongest and older ones fade.",
-    trips:"One card per sail, all at the same scale, with the wind and tidal current averaged over the sail and the Beaufort force at its peak.",
+    trips:"One card per sail, all at the same scale. Wind is sampled every 15 minutes along the track: the median, its spread, and the Beaufort force of the windiest tenth.",
     heat:"Where the hours went: each hexagon is shaded by minutes spent there, with a total for each part of the Bay."
   };
   function showView(v){
@@ -654,7 +670,7 @@
           ((t.club||t.aboard)?'<p>'+[t.club,(t.aboard?t.aboard+' aboard'+(t.aboardNote?' ('+t.aboardNote+')':''):'')].filter(Boolean).join(' · ')+(area?' · '+area:'')+'</p>':(area?'<p>'+area+'</p>':''))+
           (t.note?'<p>'+t.note+'</p>':'')+'</div>'+
         '<div class="n">'+(t.hours?(t.approx?'≈ ':'')+fh(t.hours)+'<small>'+(t.nm!=null?t.nm.toFixed(1)+' nm':'no track')+'</small>':'no track')+
-          (t.wind?'<small style="margin-top:6px">'+bfChip(t.wind,true)+'</small><small>'+(t.wind.avg===t.wind.max?t.wind.max:t.wind.avg+'–'+t.wind.max)+' kn '+t.wind.from+' · gusts '+t.wind.gust+'</small>':'')+
+          (t.wind?'<small style="margin-top:6px">'+bfChip(t.wind,true)+'</small><small>'+(t.wind.med!=null?t.wind.med+' kn '+t.wind.from+' · '+t.wind.p10+'–'+t.wind.p90:(t.wind.avg+' kn '+t.wind.from))+' · gusts '+t.wind.gust+'</small>':'')+
           '</div></div>';
     }).join("");
     document.getElementById("sl-foot").innerHTML=
@@ -778,7 +794,21 @@
     step(); artTimer=setInterval(step, ART_STEP);
   }
 
-  function drawAll(){ drawHead(); drawArt(); drawRoles(); drawCal(); drawRecs(); }
+  /* a short Beaufort guide: knots, name, what the water looks like, and how many of my sails reached it */
+  var BF_SEA=["flat, mirror-like","ripples, no crests","small wavelets","large wavelets, a few whitecaps","small waves, frequent whitecaps",
+              "moderate waves, many whitecaps, some spray","larger waves, white foam crests everywhere","sea heaps up, foam blows in streaks","high waves, long streaks of foam"];
+  var BF_LO=[0,1,4,7,11,17,22,28,34], BF_HI=[0,3,6,10,16,21,27,33,40];
+  function drawBfGuide(){
+    var count={}; D.trips.forEach(function(t){ if(t.wind){ var f=bf(bfKn(t.wind)); count[f]=(count[f]||0)+1; } });
+    var rows=""; for(var f=0;f<=8;f++){
+      rows+='<tr><td class="f">'+bfLadder(Math.min(f,7))+'F'+f+'</td><td class="k">'+(f===0?'&lt;1':BF_LO[f]+'–'+BF_HI[f])+' kn</td>'+
+        '<td>'+BF_N[f]+' · '+BF_SEA[f]+'</td><td class="n">'+(count[f]?count[f]+' sail'+(count[f]===1?'':'s'):'')+'</td></tr>'; }
+    var html='<details class="sl-bfx"><summary>What the Beaufort force means</summary><table>'+rows+'</table>'+
+      '<p>Each sail\'s force comes from the windiest tenth of its 15-minute wind readings along the track, so a single gust doesn\'t set it.</p></details>';
+    Array.prototype.forEach.call(document.querySelectorAll(".sl-bfx-slot"),function(el){ el.innerHTML=html; });
+  }
+
+  function drawAll(){ drawHead(); drawArt(); drawRoles(); drawCal(); drawRecs(); drawBfGuide(); }
 
   /* ---------- theme ---------- */
   var sysDark=window.matchMedia?matchMedia("(prefers-color-scheme:dark)"):null;

@@ -11,7 +11,8 @@ Live at https://tulerpetontidae.github.io/sailing/
   point a minute.
 - `build.py` merges the two, adds conditions and writes `data.json`:
   - wind from the [Open-Meteo](https://open-meteo.com/) historical forecast
-    archive, at the sail's midpoint, averaged over the hours sailed;
+    archive every 15 minutes along the track (median, 10-90% range, and the
+    Beaufort force of the windiest tenth);
   - tidal current from [NOAA](https://tidesandcurrents.noaa.gov/) predictions
     at the nearest station, sampled every ten minutes along the track.
   Both are modelled, not measured on the boat. Responses are cached in
