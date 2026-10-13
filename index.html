@@ -134,6 +134,17 @@
   .sl-bf{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap}
   .sl-bf svg{display:block}
   .sl-bf b{font-weight:500;color:var(--ink)}
+  .sl-pager{display:none;align-items:center;justify-content:space-between;margin:0 0 10px}
+  .sl-pager button{width:38px;height:38px;border-radius:50%;border:1px solid var(--rule);background:var(--paper);color:var(--ink);
+    font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 2px}
+  .sl-pager button:disabled{opacity:.3;cursor:default}
+  .sl-pager span{font-family:var(--mono);font-size:11px;color:var(--ink-2);text-align:center}
+  @media (max-width:640px){
+    .sl-pager{display:flex}
+    #pane-trips .sl-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:12px}
+    #pane-trips .sl-grid::-webkit-scrollbar{display:none}
+    #pane-trips .sl-grid .sl-mini{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always}
+  }
   /* small multiples */
   .sl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
   .sl-mini{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--paper)}
@@ -217,7 +228,13 @@
     </div>
     <div class="sl-pane" id="pane-all"><div class="sl-map" id="map-all"></div>
       <div style="margin-top:10px" id="sl-rolekey"></div></div>
-    <div class="sl-pane" id="pane-trips" hidden><div class="sl-grid" id="sl-grid"></div>
+    <div class="sl-pane" id="pane-trips" hidden>
+      <div class="sl-pager" id="sl-pager">
+        <button type="button" id="sl-prev" aria-label="Newer sail">&#8249;</button>
+        <span id="sl-pos" aria-live="polite"></span>
+        <button type="button" id="sl-next" aria-label="Older sail">&#8250;</button>
+      </div>
+      <div class="sl-grid" id="sl-grid"></div>
       <div class="sl-condkey" id="sl-condkey"></div></div>
     <div class="sl-pane" id="pane-heat" hidden><div class="sl-map" id="map-heat"></div>
       <div class="sl-legend"><span>Minutes on the water per hex</span><span class="sl-ramp" id="sl-hramp"></span><span id="sl-hmax"></span></div></div>
@@ -537,6 +554,21 @@
         '<span>'+bfLadder(4)+'Beaufort force (peak)</span></div>'+
       '<div class="sl-legrp nowrap"><span class="lab">Route</span>'+
         ROLES.map(function(r){ return '<span><i class="sw" style="background:'+rc(r)+'"></i>'+RNAME[r].toLowerCase()+'</span>'; }).join("")+'</div>';
+    var cards=g.children, prev=document.getElementById("sl-prev"), next=document.getElementById("sl-next"), pos=document.getElementById("sl-pos");
+    function step(){ return cards.length ? cards[0].offsetWidth+12 : 0; }
+    function current(){ return Math.max(0, Math.min(list.length-1, Math.round(g.scrollLeft/(step()||1)))); }
+    function update(){ var i=current(), t=list[i];
+      pos.textContent=(i+1)+' / '+list.length+(t?' · '+fdate(t.date):'');
+      prev.disabled=i<=0; next.disabled=i>=list.length-1; }
+    // go to an exact card; some browsers ignore smooth scrolling inside a snapping row,
+    // so if it hasn't arrived shortly after, jump there
+    function goTo(i){ i=Math.max(0,Math.min(list.length-1,i)); var x=i*step();
+      g.scrollTo({left:x,behavior:"smooth"});
+      setTimeout(function(){ if(Math.abs(g.scrollLeft-x)>4) g.scrollLeft=x; update(); },420); }
+    prev.onclick=function(){ goTo(current()-1); };
+    next.onclick=function(){ goTo(current()+1); };
+    var st=null; g.onscroll=function(){ clearTimeout(st); st=setTimeout(update,60); };
+    update();
     var b=allBounds();
     list.forEach(function(t){ if(!t.poly) return;
       // every thumbnail shares one extent, so they're comparable at a glance
