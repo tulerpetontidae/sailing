@@ -192,7 +192,7 @@
 
   /* records */
   .sl-recs{margin-top:12px;border-top:1px solid var(--rule)}
-  .sl-rec{display:grid;grid-template-columns:110px 1fr 200px;gap:4px 24px;padding:12px 0;border-bottom:1px solid var(--rule-2)}
+  .sl-rec{display:grid;grid-template-columns:110px 1fr 110px 200px;gap:4px 24px;padding:12px 0;border-bottom:1px solid var(--rule-2)}
   .sl-rec .d{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
   .sl-rec .d small{display:block;color:var(--muted);font-size:10.5px}
   .sl-rec .d .no{display:block;font-family:var(--disp);font-weight:800;font-size:20px;line-height:1;color:var(--ink);letter-spacing:.01em;margin-bottom:3px}
@@ -204,10 +204,14 @@
   .sl-rec .t p{margin:4px 0 0;font-size:12.5px;color:var(--ink-2);max-width:70ch}
   .sl-rec .n{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);text-align:left;white-space:nowrap}
   .sl-rec .n small{display:block;color:var(--muted);font-size:10.5px}
+  .sl-rec .h{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+  .sl-rec .h small{display:block;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
   .sl-rec.undated{opacity:.7}
   @media (max-width:640px){
     .sl-rec{grid-template-columns:1fr 170px}
     .sl-rec .d{grid-column:1 / -1}
+    .sl-rec .h{grid-column:1}
+    .sl-rec .n{grid-column:2;grid-row:2 / span 2}
     .sl-map{height:360px}
   }
 
@@ -497,12 +501,12 @@
   }
   function smooth(pts){ return chaikin(simplify(pts,45),2); }
 
-  /* chart-style markers: the yacht-harbour sailboat and the anchorage anchor */
+  /* chart-style markers: the home port as a club burgee on its staff, and the anchorage anchor */
   function markIcon(kind,size){
     var c=cssv("--ink"), bg=cssv("--paper"), r=size/2;
     var g = kind==="harbour"
-      ? '<path d="M0,-6 L0,4" stroke="'+c+'" stroke-width="1.3"/><path d="M0.8,-5.4 L5,3 L0.8,3 Z" fill="'+c+'"/>'+
-        '<path d="M-0.8,-3.6 L-4.2,3 L-0.8,3 Z" fill="'+c+'" opacity=".7"/><path d="M-5.5,4.6 L5.5,4.6 L4,6.6 L-4,6.6 Z" fill="'+c+'"/>'
+      ? '<path d="M-3.2,-6.5 L-3.2,6.5" stroke="'+c+'" stroke-width="1.3"/><path d="M-2.6,-6 L5.8,-3 L-2.6,0 Z" fill="'+c+'"/>'+
+        '<path d="M-6,6.5 L-0.4,6.5" stroke="'+c+'" stroke-width="1.3"/>'
       : '<circle cx="0" cy="-5" r="1.6" fill="none" stroke="'+c+'" stroke-width="1.3"/><path d="M0,-3.4 L0,6" stroke="'+c+'" stroke-width="1.4"/>'+
         '<path d="M-3,-1.4 L3,-1.4" stroke="'+c+'" stroke-width="1.3"/><path d="M-5,2.6 Q-4.4,6.6 0,6.6 Q4.4,6.6 5,2.6" fill="none" stroke="'+c+'" stroke-width="1.4"/>'+
         '<path d="M-6,3.6 L-5,2 L-3.6,3.4" fill="none" stroke="'+c+'" stroke-width="1.2"/><path d="M6,3.6 L5,2 L3.6,3.4" fill="none" stroke="'+c+'" stroke-width="1.2"/>';
@@ -513,7 +517,7 @@
     opts=opts||{}; var tipOn=!opts.quiet;
     if(D.harbour && !opts.noHarbour){
       var h=L.marker([D.harbour.lat,D.harbour.lon],{icon:markIcon("harbour",size),interactive:tipOn,keyboard:false}).addTo(m);
-      if(tipOn) h.on("mousemove",function(e){ showTip("<b>Harbour</b><br>"+D.harbour.name+", where every sail ends",e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
+      if(tipOn) h.on("mousemove",function(e){ showTip("<b>Home port</b><br>"+D.harbour.name+", where every sail starts and ends",e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
     }
     D.trips.forEach(function(t){ if(!t.anchor || (opts.only && opts.only!==t)) return;
       var a=L.marker([t.anchor.lat,t.anchor.lon],{icon:markIcon("anchor",size),interactive:tipOn,keyboard:false}).addTo(m);
@@ -696,6 +700,7 @@
           (t.title?'<p>'+t.type+'</p>':'')+
           ((t.club||t.aboard)?'<p>'+[t.club,(t.aboard?t.aboard+' aboard'+(t.aboardNote?' ('+t.aboardNote+')':''):'')].filter(Boolean).join(' · ')+(area?' · '+area:'')+'</p>':(area?'<p>'+area+'</p>':''))+
           (t.note?'<p>'+t.note+'</p>':'')+'</div>'+
+        '<div class="h"><small>Home port</small>'+(t.home||(D.harbour&&D.harbour.name)||"Sausalito")+'</div>'+
         '<div class="n">'+(t.hours?(t.approx?'≈ ':'')+fh(t.hours)+'<small>'+(t.nm!=null?t.nm.toFixed(1)+' nm':'no track')+'</small>':'no track')+
           (t.wind?'<small style="margin-top:6px">'+bfChip(t.wind,true)+'</small><small>'+(t.wind.med!=null?t.wind.med+' kn '+t.wind.from+' · '+t.wind.p10+'–'+t.wind.p90:(t.wind.avg+' kn '+t.wind.from))+' · gusts '+t.wind.gust+'</small>':'')+
           '</div></div>';
@@ -836,8 +841,20 @@
                : '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".38" stop-color="#fff" stop-opacity="1"/>')+'</linearGradient>'+
        '<mask id="slArtMask" maskUnits="userSpaceOnUse" x="0" y="0" width="'+W+'" height="'+H+'">'+
        '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="url(#slArtFade)"/></mask></defs><g mask="url(#slArtMask)">';
+    // shallow-water tint: land and open water share the same colour; the water glows a little lighter just off the
+    // shore, like the shallows on a chart. The land's west edge is where the coastline data stops,
+    // so the land fades in from there and the cut never shows.
+    if(D.land){
+      var landD=D.land.map(function(r){ return "M"+chaikin(r,1).map(P).join(" L")+"Z"; }).join(" "), cutX=+P([37.85,-122.62]).split(",")[0];
+      s+='<defs><filter id="slShallow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur in="SourceAlpha" stdDeviation="4.5" result="b"/>'+
+         '<feComposite in="b" in2="SourceAlpha" operator="out" result="o"/><feFlood flood-color="#7fb2df" flood-opacity=".25"/><feComposite in2="o" operator="in"/></filter>'+
+         '<linearGradient id="slLandIn" gradientUnits="userSpaceOnUse" x1="'+cutX.toFixed(1)+'" x2="'+(cutX+160).toFixed(1)+'" y1="0" y2="0">'+
+         '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient>'+
+         '<mask id="slLandM" maskUnits="userSpaceOnUse" x="0" y="0" width="'+W+'" height="'+H+'"><rect width="'+W+'" height="'+H+'" fill="url(#slLandIn)"/></mask></defs>'+
+         '<g mask="url(#slLandM)"><g filter="url(#slShallow)"><path d="'+landD+'" fill="#fff"/></g></g>';
+    }
     (D.coast||[]).forEach(function(c){
-      s+='<polyline class="coast" points="'+chaikin(c,2).map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" opacity=".13"/>';
+      s+='<polyline class="coast" points="'+chaikin(c,2).map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width=".7" stroke-linejoin="round" stroke-linecap="round" opacity=".2"/>';
     });
     s+=compassRose(166+(ox-oxR),55,41.4,fg)+'</g>';            // the rose dissolves with the shore
     T.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t,i,arr){

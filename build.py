@@ -155,6 +155,54 @@ def metres(a, b):
     k = math.cos(math.radians(37.85))
     return math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * k)
 
+LAND_FRAME = (37.76, 37.95, -122.62, -122.34)        # S, N, W, E: inside the area the coastline was fetched for
+
+def land_polygons(lines, frame=LAND_FRAME):
+    """Close OSM coastline lines into land polygons. OSM draws coastline with the land on its
+    left, so each line is clipped to the frame and joined to the next one by walking the
+    frame counter-clockwise; closed rings (islands) are kept as they are."""
+    S, N, W, E = frame
+    def inside(p): return S <= p[0] <= N and W <= p[1] <= E
+    def cross(a, b):
+        best = None
+        for k, v in ((0, S), (0, N), (1, W), (1, E)):
+            if (a[k] - v) * (b[k] - v) <= 0 and a[k] != b[k]:
+                t = (v - a[k]) / (b[k] - a[k]); q = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+                if S - 1e-9 <= q[0] <= N + 1e-9 and W - 1e-9 <= q[1] <= E + 1e-9 and (best is None or t < best[0]):
+                    best = (t, q)
+        return best[1]
+    rings, pieces = [], []
+    for L in lines:
+        if L[0] == L[-1] and all(inside(p) for p in L):
+            rings.append(L); continue
+        cur = None
+        for i, p in enumerate(L):
+            if inside(p):
+                if cur is None: cur = [cross(L[i - 1], p)] if i > 0 else []
+                cur.append(p)
+            elif cur is not None and i > 0 and inside(L[i - 1]):
+                cur.append(cross(L[i - 1], p)); pieces.append(cur); cur = None
+        if cur: pieces.append(cur)
+    w, h = E - W, N - S; per = 2 * (w + h)
+    def tpos(p):                                    # distance along the frame, counter-clockwise from SW
+        if abs(p[0] - S) < 1e-7: return p[1] - W
+        if abs(p[1] - E) < 1e-7: return w + (p[0] - S)
+        if abs(p[0] - N) < 1e-7: return w + h + (E - p[1])
+        return 2 * w + h + (N - p[0])
+    corners = [(w, [S, E]), (w + h, [N, E]), (2 * w + h, [N, W]), (per, [S, W])]
+    used, polys = [False] * len(pieces), []
+    for i0 in range(len(pieces)):
+        if used[i0]: continue
+        poly, i = [], i0
+        while True:
+            used[i] = True; poly += pieces[i]; te = tpos(pieces[i][-1])
+            d, j = min(((tpos(pieces[j][0]) - te) % per, j) for j in range(len(pieces)) if not used[j] or j == i0)
+            poly += [q for tc, q in sorted(corners, key=lambda c: (c[0] - te) % per) if 0 < (tc - te) % per < d]
+            if j == i0: break
+            i = j
+        polys.append(poly)
+    return [[[round(a, 5), round(b, 5)] for a, b in r] for r in polys + rings]
+
 def anchor_spot(pts, harbour):
     """Longest spell of five or more minutes within 60 m of one spot, at least
     500 m from the harbour - the time spent at anchor."""
@@ -313,9 +361,11 @@ def main():
     json.dump(cache, open("conditions.json", "w"), indent=1)
     data = {"generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "areas": [{"name": a[0], "lat": a[1], "lon": a[2]} for a in AREAS], "harbour": harbour, "trips": out}
-    # a rough shoreline for the header sketch (OpenStreetMap coastline, pre-simplified)
+    # a rough shoreline for the header sketch (OpenStreetMap coastline, pre-simplified),
+    # and the same coast closed into land areas so the header can tint the shallows
     if os.path.exists("coast.json"):
         data["coast"] = json.load(open("coast.json"))["lines"]
+        data["land"] = land_polygons(data["coast"])
     json.dump(data, open("data.json", "w"), ensure_ascii=False, separators=(",", ":"))
     dated = [r for r in out if r.get("date") and r.get("hours")]
     print("%d days (%d with records), %.1f h, %.1f nm" % (len(out), len(dated),
