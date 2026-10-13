@@ -887,17 +887,20 @@
       '<div class="sl-skey">'+["harbour","bay","gate"].map(function(k){
         return '<span><i style="background:'+cssv(WC[k])+'"></i>'+WN[k]+' · '+Math.round(W[k]/wt*100)+'%</span>'; }).join("")+'</div>'+
       (cmax.d?'<div class="ln">Strongest current: <b>'+cmax.kn+' kn</b> · '+fdate(cmax.d)+'</div>':'')+'</div>';
-    // 4. wind: sails by Beaufort force, skippered days solid, the rest outlined
+    // 4. wind: sails by Beaufort force; skipper solid, mate half filled, crew and student outlined
     var byF={}; T.forEach(function(t){ if(!t.wind) return; var f=bf(bfKn(t.wind)); (byF[f]=byF[f]||[]).push(t); });
     var fs=Object.keys(byF).map(Number), f0=Math.max(1,Math.min.apply(null,fs)-1), f1=Math.min(8,Math.max.apply(null,fs)+1);
     var sk=T.filter(function(t){return t.role==="skipper"&&t.wind;}).sort(function(a,b){return bfKn(b.wind)-bfKn(a.wind);})[0];
-    var cols=""; for(var f=f0;f<=f1;f++){ var list=(byF[f]||[]).slice().sort(function(a,b){return (a.role==="skipper")-(b.role==="skipper");});
-      cols+='<div><div class="col">'+list.map(function(t){ var c=cssv("--bf"+Math.max(1,Math.min(6,f-1)));
-          return '<i title="'+fdate(t.date)+' · '+RNAME[t.role]+'" style="'+(t.role==="skipper"?'background:'+c:'border:1.5px solid '+c+';box-sizing:border-box')+'"></i>'; }).join("")+
+    var RK={skipper:2,mate:1};
+    var cols=""; for(var f=f0;f<=f1;f++){ var list=(byF[f]||[]).slice().sort(function(a,b){return (RK[a.role]||0)-(RK[b.role]||0);});
+      cols+='<div><div class="col">'+list.map(function(t){ var c=cssv("--bf"+Math.max(1,Math.min(6,f-1))),
+          st=t.role==="skipper" ? 'background:'+c
+            : 'border:1.5px solid '+c+';box-sizing:border-box'+(t.role==="mate"?';background:linear-gradient(to top right,'+c+' 50%,transparent 50%)':'');
+          return '<i title="'+fdate(t.date)+' · '+RNAME[t.role]+' · Beaufort force '+f+'" style="'+st+'"></i>'; }).join("")+
         '</div><span>F'+f+'</span></div>'; }
-    var p4='<div class="sl-cp"><h3>Wind</h3><div class="sl-fh">'+cols+'</div>'+
-      '<div class="ln">One block per sail · solid = skipper</div>'+
-      (sk?'<div class="ln">Windiest as skipper: <b>F'+bf(bfKn(sk.wind))+'</b>, '+bfKn(sk.wind)+' kn · '+fdate(sk.date)+'</div>':'')+'</div>';
+    var p4='<div class="sl-cp"><h3>Wind · Beaufort force</h3><div class="sl-fh">'+cols+'</div>'+
+      '<div class="ln">One block per sail, by Beaufort force (F) · solid = skipper · half = mate · outline = crew or student</div>'+
+      (sk?'<div class="ln">Windiest as skipper: <b>Beaufort force '+bf(bfKn(sk.wind))+'</b>, '+bfKn(sk.wind)+' kn · '+fdate(sk.date)+'</div>':'')+'</div>';
     document.getElementById("sl-cgrid").innerHTML=p1+p2+p3+p4;
   }
 
