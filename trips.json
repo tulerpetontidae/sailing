@@ -96,7 +96,7 @@
   "type": "Catalina 30",
   "ft": 30,
   "role": "mate",
-  "club": "Co-skipper visit",
+  "club": "Sunset sail",
   "aboard": 4,
   "note": "Wind up to 20 kn with gusts and big waves. Reduced crew, so solo line handling. Motorsailed back: the tidal current was overpowering close-hauled.",
   "aboardNote": "2 experienced, 2 passengers",
@@ -123,7 +123,7 @@
   "type": "Catalina 30",
   "ft": 30,
   "role": "mate",
-  "club": "Co-skipper visit",
+  "club": "Sunset sail",
   "aboard": 3,
   "reef": 1,
   "jib": null
@@ -139,7 +139,8 @@
   "boat": "Mo'orea",
   "aboardNote": "3 experienced, 1 capable passenger",
   "reef": 1,
-  "jib": 1.0
+  "jib": 1.0,
+  "club": "Sunset sail"
  },
  {
   "key": "2026-08-14",

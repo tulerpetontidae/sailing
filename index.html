@@ -264,7 +264,7 @@
     <p class="sl-p" id="sl-wheredesc"></p>
     <div class="sl-tabs" role="tablist" aria-label="Route view">
       <button class="sl-tab" role="tab" data-v="all" aria-selected="true">A · All routes</button>
-      <button class="sl-tab" role="tab" data-v="trips" aria-selected="false">B · Trip by trip</button>
+      <button class="sl-tab" role="tab" data-v="trips" aria-selected="false">B · Voyage by voyage</button>
       <button class="sl-tab" role="tab" data-v="heat" aria-selected="false">C · Time on the water</button>
     </div>
     <div class="sl-pane" id="pane-all"><div class="sl-map" id="map-all"></div>
@@ -382,7 +382,7 @@
     document.getElementById("sl-rolekey").innerHTML=
       '<span class="sl-key"><i style="background:'+m2("skipper")+'"></i>Skipper</span>'+
       '<span class="sl-key"><i style="background:'+m2("crew")+'"></i>Mate, crew or student</span>'+
-      '<span class="sl-key" style="color:var(--muted)">newest sail drawn darkest; older ones fade to 10%</span>';
+      '<span class="sl-key" style="color:var(--muted)">newest sail drawn darkest; older ones faded</span>';
   }
 
   /* ---------- calendar ---------- */
@@ -715,6 +715,30 @@
      before it's drawn again. Static for anyone who prefers reduced motion. */
   var artTimer=null, ART_KEEP=4, ART_STEP=3200, ART_NARROW=matchMedia("(max-width:760px)");
   try{ ART_NARROW.addEventListener("change",function(){ if(D) drawArt(); }); }catch(e){}
+  /* the Golden Gate Bridge seen from above, in a muted international orange. One soft, blurred
+     shadow under it, offset towards the evening shadow side, makes it hover above the water;
+     the roads fade out at both ends */
+  function ggBridge(P){
+    var GG=[[37.8079,-122.4753],[37.8106,-122.4773],[37.8136,-122.4778],[37.8249,-122.4795],[37.8280,-122.4800],[37.8318,-122.4808]];
+    var xy=GG.map(function(p){ return P(p).split(",").map(Number); }), col="#e0592a", f=function(n){ return n.toFixed(2); };
+    var A=xy[0], Z=xy[5], L=Math.hypot(Z[0]-A[0],Z[1]-A[1])||1, dx=(Z[0]-A[0])/L, dy=(Z[1]-A[1])/L, nx=-dy, ny=dx;
+    function at(q){ return Math.hypot(q[0]-A[0],q[1]-A[1])/L; }
+    function pts(a){ return a.map(function(q){ return f(q[0])+","+f(q[1]); }).join(" "); }
+    function bar(b,w,t,fill){ return '<polygon points="'+pts([[b[0]-nx*w-dx*t,b[1]-ny*w-dy*t],[b[0]+nx*w-dx*t,b[1]+ny*w-dy*t],
+      [b[0]+nx*w+dx*t,b[1]+ny*w+dy*t],[b[0]-nx*w+dx*t,b[1]-ny*w+dy*t]])+'" fill="'+fill+'" stroke="none"/>'; }
+    var fS=at(xy[1]), fN=at(xy[4]), towers=[xy[2],xy[3]];
+    var o='<defs><linearGradient id="ggFade" gradientUnits="userSpaceOnUse" x1="'+f(A[0])+'" y1="'+f(A[1])+'" x2="'+f(Z[0])+'" y2="'+f(Z[1])+'">'+
+      [[0,0],[fS*.5,.25],[fS,1],[fN,1],[fN+(1-fN)*.5,.25],[1,0]].map(function(st){
+        return '<stop offset="'+st[0].toFixed(3)+'" stop-color="#fff" stop-opacity="'+st[1]+'"/>'; }).join("")+'</linearGradient>'+
+      '<mask id="ggM" maskUnits="userSpaceOnUse" x="0" y="0" width="440" height="220"><rect x="0" y="0" width="440" height="220" fill="url(#ggFade)"/></mask>'+
+      '<filter id="ggBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.4"/></filter></defs>';
+    o+='<g class="gg" mask="url(#ggM)" stroke-linecap="round" stroke-linejoin="round" fill="none">';
+    o+='<g filter="url(#ggBlur)" opacity=".5"><polyline points="'+pts(xy.map(function(q){ return [q[0]+3,q[1]+1.4]; }))+'" stroke="#000" stroke-width="3"/>'+
+       towers.map(function(b){ return bar([b[0]+4.5,b[1]+2],3.2,1.4,"#000"); }).join("")+'</g>';
+    o+='<g opacity=".72"><polyline class="ggd" points="'+pts(xy)+'" stroke="'+col+'" stroke-width="2.2"/>'+
+       towers.map(function(b){ return bar(b,3,.9,col)+bar(b,1.2,.5,"#f09a74"); }).join("")+'</g>';
+    return o+'</g>';
+  }
   /* a faint, simplified chart compass rose: a degree ring, a star at true north, and an
      inner ring whose arrow points to magnetic north (about 13°E on SF Bay) */
   function compassRose(cx,cy,R,fg){
@@ -820,11 +844,12 @@
       var op=(0.22+0.5*(i/Math.max(1,arr.length-1))).toFixed(2);           // older lines quieter (static version)
       s+='<polyline points="'+t._art.map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+op+'"/>';
     });
+    s+=ggBridge(P);                                                  // the bridge sits above the routes
     if(D.harbour) s+='<circle cx="'+P([D.harbour.lat,D.harbour.lon]).split(",")[0]+'" cy="'+P([D.harbour.lat,D.harbour.lon]).split(",")[1]+'" r="3" fill="'+fg+'"/>';
     el.innerHTML=s+'</svg>';
 
     var reduce=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var lines=Array.prototype.slice.call(el.querySelectorAll("polyline:not(.coast)"));
+    var lines=Array.prototype.slice.call(el.querySelectorAll("svg > polyline"));
     if(reduce || lines.length<2) return;
     lines.forEach(function(l){ var L=l.getTotalLength(); l._L=L;
       l.style.transition="none"; l.style.strokeDasharray=L; l.style.strokeDashoffset=L; l.style.opacity=0; });
