@@ -232,8 +232,8 @@
   <div class="sl-hero">
     <div class="sl-eyebrow" id="sl-range">—</div>
     <h1 class="sl-title">Sailing log</h1>
-    <div class="sl-art" id="sl-art" aria-hidden="true"></div>
     <p class="sl-sub">Licensed ASA 103. Mostly sailing Catalina 30s out of Sausalito on SF Bay.</p>
+    <div class="sl-art" id="sl-art" aria-hidden="true"></div>
     <div class="sl-facts" id="sl-facts"></div>
   </div>
 
@@ -713,7 +713,31 @@
      Animated: routes are drawn in one at a time in date order; older ones dim
      step by step, and the oldest beyond the four on show fades to nothing
      before it's drawn again. Static for anyone who prefers reduced motion. */
-  var artTimer=null, ART_KEEP=4, ART_STEP=3200;
+  var artTimer=null, ART_KEEP=4, ART_STEP=3200, ART_NARROW=matchMedia("(max-width:760px)");
+  try{ ART_NARROW.addEventListener("change",function(){ if(D) drawArt(); }); }catch(e){}
+  /* a faint, simplified chart compass rose: a degree ring, a star at true north, and an
+     inner ring whose arrow points to magnetic north (about 13°E on SF Bay) */
+  function compassRose(cx,cy,R,fg){
+    var VAR=13, Ri=R-12, o='<g class="rose" fill="none" stroke="'+fg+'" opacity=".2">', i, a;
+    function f(n){ return n.toFixed(2); }
+    function tick(deg,r0,r1,w){ var a=deg*Math.PI/180;
+      return '<line x1="'+f(cx+Math.sin(a)*r0)+'" y1="'+f(cy-Math.cos(a)*r0)+'" x2="'+f(cx+Math.sin(a)*r1)+'" y2="'+f(cy-Math.cos(a)*r1)+'" stroke-width="'+w+'"/>'; }
+    o+='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" stroke-width=".95"/>';
+    for(i=0;i<360;i+=10) o+=tick(i,R-(i%90===0?6:(i%30===0?4.2:2.4)),R,.75);
+    o+='<circle cx="'+cx+'" cy="'+cy+'" r="'+Ri+'" stroke-width=".75"/>';
+    a=VAR*Math.PI/180; var tx=cx+Math.sin(a)*(Ri-1), ty=cy-Math.cos(a)*(Ri-1),
+      bx=cx+Math.sin(a)*(Ri-9.5), by=cy-Math.cos(a)*(Ri-9.5), px=Math.cos(a)*2.7, py=Math.sin(a)*2.7;
+    o+=tick(VAR,-(Ri-9.5),Ri-9.5,.65);
+    o+='<path d="M'+f(tx)+','+f(ty)+' L'+f(bx-px)+','+f(by-py)+' L'+f(bx)+','+f(by)+' Z" fill="'+fg+'" stroke-width=".5"/>';
+    o+='<path d="M'+f(tx)+','+f(ty)+' L'+f(bx+px)+','+f(by+py)+' L'+f(bx)+','+f(by)+' Z" stroke-width=".5"/>';
+    var st='', sr=4, sy=cy-R+10;
+    for(i=0;i<10;i++){ var r=i%2?sr*.42:sr, an=i*Math.PI/5; st+=(i?'L':'M')+f(cx+Math.sin(an)*r)+','+f(sy-Math.cos(an)*r); }
+    o+='<path d="'+st+'Z" fill="'+fg+'" stroke="none"/></g>';
+    o+='<g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central">';
+    [["N",0,-1],["E",1,0],["S",0,1],["W",-1,0]].forEach(function(c){
+      o+='<text font-size="7.5" opacity=".24" x="'+f(cx+c[1]*(R+6))+'" y="'+f(cy+c[2]*(R+6))+'">'+c[0]+'</text>'; });
+    return o+'</g>';
+  }
   function drawArt(){
     clearInterval(artTimer);
     var el=document.getElementById("sl-art"), T=D.trips.filter(function(t){return t.poly;});
@@ -776,19 +800,22 @@
     var x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
     all.forEach(function(p){ var x=p[1]*k, y=-p[0]; x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); });
     var W=440,H=220,pad=8, sc=Math.min((W-2*pad)/(x1-x0),(H-2*pad)/(y1-y0));
-    var ox=W-pad-(x1-x0)*sc, oy=(H-(y1-y0)*sc)/2;          // right-aligned, vertically centred
+    // beside the headline the sketch hugs the right edge; once it drops below the title it is centred
+    var narrow=ART_NARROW.matches, oxR=W-pad-(x1-x0)*sc, ox=narrow?(W-(x1-x0)*sc)/2:oxR, oy=(H-(y1-y0)*sc)/2;
     function P(p){ return ((p[1]*k-x0)*sc+ox).toFixed(1)+","+((-p[0]-y0)*sc+oy).toFixed(1); }
-    var fg=cssv("--hero-fg"), s='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMaxYMid meet">';
+    var fg=cssv("--hero-fg"), s='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="'+(narrow?'xMidYMid':'xMaxYMid')+' meet">';
     // the shore underneath: a thick, faint line, so the routes still lead. It fades
     // in from the left, so it dissolves rather than running into the headline.
     s+='<defs><linearGradient id="slArtFade" x1="0" x2="1" y1="0" y2="0">'+
-       '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".38" stop-color="#fff" stop-opacity="1"/></linearGradient>'+
+       (narrow ? '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".14" stop-color="#fff" stop-opacity="1"/>'+
+                 '<stop offset=".86" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>'
+               : '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".38" stop-color="#fff" stop-opacity="1"/>')+'</linearGradient>'+
        '<mask id="slArtMask" maskUnits="userSpaceOnUse" x="0" y="0" width="'+W+'" height="'+H+'">'+
        '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="url(#slArtFade)"/></mask></defs><g mask="url(#slArtMask)">';
     (D.coast||[]).forEach(function(c){
       s+='<polyline class="coast" points="'+chaikin(c,2).map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" opacity=".13"/>';
     });
-    s+='</g>';
+    s+=compassRose(166+(ox-oxR),55,41.4,fg)+'</g>';            // the rose dissolves with the shore
     T.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t,i,arr){
       var op=(0.22+0.5*(i/Math.max(1,arr.length-1))).toFixed(2);           // older lines quieter (static version)
       s+='<polyline points="'+t._art.map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+op+'"/>';
