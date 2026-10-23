@@ -374,7 +374,7 @@ def main():
         m = r.get("avg") or {}; mw = m.get("wind") or {}; mc = m.get("current") or {}
         w = r.get("wind") or {}
         print("  %s %-8s %-8s reef %s jib %-4s | wind med %s (p10 %s, p90 %s) peak %s gust %s from %s, n=%s | current %s %s" % (
-            r["date"], r["role"], r.get("boat") or r["type"], r.get("reef"), r.get("jib"),
+            r["date"], r["role"], r.get("boat") or r.get("type") or "?", r.get("reef"), r.get("jib"),
             w.get("med"), w.get("p10"), w.get("p90"), w.get("max"), w.get("gust"), w.get("from"), w.get("n"),
             mc.get("phase"), mc.get("kn")))
 

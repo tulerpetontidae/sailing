@@ -174,5 +174,19 @@
   "note": "Two aboard, one a first-time sailor. Practised tacks and gybes. Full sail, good conditions.",
   "reef": 0,
   "jib": 1.0
+ },
+ {
+  "key": "2026-10-22",
+  "strava": 20695956449,
+  "boat": "Sophia",
+  "type": "Catalina 30",
+  "ft": 30,
+  "role": "crew",
+  "club": "Sunset sail",
+  "aboard": 3,
+  "aboardNote": "all experienced",
+  "reef": 0,
+  "jib": 1.0,
+  "note": "Occasional fog, mist and rain, with visibility below a mile (maybe a little less) at times. The most stunning ten-minute sunset when the fog suddenly cleared on the horizon. Practiced navigation after sunset, in the dark (as dark as the Bay gets)."
  }
 ]

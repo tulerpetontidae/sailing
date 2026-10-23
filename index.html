@@ -56,10 +56,14 @@
   .sl-theme button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 
   .sl-hero{background:var(--hero-bg);color:var(--hero-fg);border:1px solid var(--hero-line);border-radius:3px;padding:30px 28px 26px;margin-top:14px;position:relative;overflow:hidden}
-  .sl-art{position:absolute;right:20px;top:14px;bottom:14px;width:46%;max-width:440px;pointer-events:none}
+  .sl-art{position:absolute;right:20px;top:14px;bottom:14px;width:46%;max-width:440px;pointer-events:none;margin:0;display:flex;flex-direction:column}
+  .sl-artbox{flex:1;min-height:0}
   .sl-art svg{width:100%;height:100%;display:block}
+  .sl-art figcaption{font-size:11px;line-height:1.45;color:color-mix(in srgb,var(--hero-fg) 55%,transparent);text-align:right;margin-top:4px}
   @media (max-width:760px){
-    .sl-art{position:static;width:100%;max-width:none;height:48vw;max-height:240px;margin:14px 0 6px}
+    .sl-art{position:static;width:100%;max-width:none;margin:14px 0 6px}
+    .sl-artbox{flex:none;height:48vw;max-height:240px}
+    .sl-art figcaption{text-align:left}
   }
   .sl-hero > *:not(.sl-art){position:relative;z-index:1}
   .sl-hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
@@ -237,7 +241,8 @@
     <div class="sl-eyebrow" id="sl-range">—</div>
     <h1 class="sl-title">Sailing log</h1>
     <p class="sl-sub">Licensed ASA 103. Mostly sailing Catalina 30s out of Sausalito on SF Bay.</p>
-    <div class="sl-art" id="sl-art" aria-hidden="true"></div>
+    <figure class="sl-art"><div class="sl-artbox" id="sl-art" aria-hidden="true"></div>
+      <figcaption><b>Voyage map.</b> Threads tracing my past sails across the bay.</figcaption></figure>
     <div class="sl-facts" id="sl-facts"></div>
   </div>
 
@@ -311,7 +316,7 @@
   function dd(iso){ return new Date(iso+"T00:00:00"); }
   function fdate(iso){ var d=dd(iso); return DOW[d.getDay()]+" "+d.getDate()+" "+MON[d.getMonth()]; }
   function fh(h){ var m=Math.round(h*60); return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"; }
-  function boatName(t){ return t.boat ? (t.boat+" · "+t.type) : t.type; }
+  function boatName(t){ return t.boat ? (t.boat+(t.type?" · "+t.type:"")) : (t.type||"Boat to confirm"); }
 
   /* ---------- tooltip ---------- */
   var tip=document.getElementById("sl-tip");
@@ -591,7 +596,7 @@
     g.innerHTML=list.map(function(t){
       return '<div class="sl-mini">'+(t.poly?'<div class="m" id="mini-'+t.key+'"></div>':'<div class="sl-nomap">no track recorded</div>')+
         '<div class="c"><div class="r1"><div><b>'+fdate(t.date)+'</b> · '+RNAME[t.role]+'</div>'+(t.wind?bfChip(t.wind,false):'')+'</div>'+
-        '<span>'+(t.boat||t.type)+' · '+fh(t.hours)+' · '+t.nm.toFixed(1)+' nm</span>'+condRow(t)+'</div></div>';
+        '<span>'+(t.boat||t.type||'Boat to confirm')+' · '+fh(t.hours)+' · '+t.nm.toFixed(1)+' nm</span>'+condRow(t)+'</div></div>';
     }).join("");
     // two legend groups that wrap as whole units, so the four roles never split apart
     document.getElementById("sl-condkey").innerHTML=
@@ -781,7 +786,19 @@
        path from the dock back out to it, so the invented stretch never cuts the shore. */
     var H0=D.harbour?[D.harbour.lat,D.harbour.lon]:null, KX=111320*Math.cos(37.85*Math.PI/180);
     function dm(a,b){ return Math.hypot((a[0]-b[0])*110540,(a[1]-b[1])*KX); }
-    var homeward=T.map(function(t){ return {t:t, p:decode(t.poly)}; }).filter(function(h){ return H0 && dm(h.p[h.p.length-1],H0)<150; });
+    /* a track recorded right from the dock can run a little past the harbour point (further into the
+       marina) at either end: cut it at its closest approach and pin that end to the harbour itself */
+    function trimHome(p){
+      if(!H0||p.length<4) return p;
+      var n=p.length, i, d, bi=-1, bd=1e9;
+      for(i=0;i<Math.ceil(n*.25);i++){ d=dm(p[i],H0); if(d<bd){ bd=d; bi=i; } }
+      var q = bd<150 ? [H0].concat(p.slice(bi+1)) : p.slice();
+      var m=q.length; bi=-1; bd=1e9;
+      for(i=Math.floor(m*.75);i<m;i++){ d=dm(q[i],H0); if(d<bd){ bd=d; bi=i; } }
+      return bd<150 ? q.slice(0,bi).concat([H0]) : q;
+    }
+    T.forEach(function(t){ t._pts=trimHome(decode(t.poly)); });
+    var homeward=T.map(function(t){ return {t:t, p:t._pts}; }).filter(function(h){ return H0 && dm(h.p[h.p.length-1],H0)<150; });
     function legs(t,pts){
       if(!H0) return {out:[],body:pts,back:[]};
       var out=[], back=[];
@@ -825,7 +842,7 @@
     }
     function artLine(t,pts){ var L=legs(t,pts);
       return chaikin([].concat(simplifyShore(L.out,40), simplifyShore(L.body,250), simplifyShore(L.back,40)),4); }
-    T.forEach(function(t){ var L=legs(t,decode(t.poly)); t._legs=L; t._art=artLine(t,decode(t.poly)); all=all.concat(t._art); });
+    T.forEach(function(t){ var L=legs(t,t._pts); t._legs=L; t._art=artLine(t,t._pts); all=all.concat(t._art); });
     var x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
     all.forEach(function(p){ var x=p[1]*k, y=-p[0]; x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); });
     var W=440,H=220,pad=8, sc=Math.min((W-2*pad)/(x1-x0),(H-2*pad)/(y1-y0));
@@ -915,7 +932,7 @@
       '<div class="ln">After sunset: <b>'+fh(afterMin/60)+'</b> over '+after.length+' sail'+(after.length===1?'':'s')+'</div></div>';
     // 2. boats, by hours
     var boats={}, skMax=0;
-    T.forEach(function(t){ var k=t.type; boats[k]=boats[k]||{h:0,ft:t.ft}; boats[k].h+=t.hours||0; if(t.role==="skipper") skMax=Math.max(skMax,t.ft||0); });
+    T.forEach(function(t){ var k=t.type; if(!k) return; boats[k]=boats[k]||{h:0,ft:t.ft}; boats[k].h+=t.hours||0; if(t.role==="skipper") skMax=Math.max(skMax,t.ft||0); });
     var bk=Object.keys(boats).sort(function(a,b){return boats[b].h-boats[a].h;}), bmax=boats[bk[0]].h;
     var p2='<div class="sl-cp"><h3>Boats</h3><div class="sl-hb">'+bk.map(function(k){
         return '<span>'+k+'</span><i style="background:'+cssv("--r-mate")+';width:'+Math.max(4,boats[k].h/bmax*100)+'%"></i><span>'+boats[k].h.toFixed(1)+' h</span>'; }).join("")+
