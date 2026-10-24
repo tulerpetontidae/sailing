@@ -307,7 +307,7 @@ def main():
             start = dt.datetime.fromtimestamp(tr["raw"], dt.timezone.utc)   # local wall-clock time stored as UTC
             r["date"] = start.strftime("%Y-%m-%d"); r["start"] = start.strftime("%H:%M")
             r["hours"] = round(hms(tr["mov"]) / 3600, 2)
-            r["nm"] = round(float(tr["km"]) / KM_PER_NM, 1)
+            r["nm"] = round(float(tr["km"]), 1)       # Strava formats sail distance in nautical miles already (the field name is historical)
             r["poly"] = tr["poly"]
             pts = decode(tr["poly"])
             wk = {}
