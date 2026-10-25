@@ -224,6 +224,17 @@
   .sl-dbody{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}
   .sl-dmap{height:440px;background:var(--rule-2)}
   .sl-dwrap{position:relative}
+  .sl-play{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--rule-2);font-family:var(--mono);font-size:11px;color:var(--ink-2);flex-wrap:wrap}
+  .sl-play button{height:28px;min-width:28px;border-radius:14px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer;font-family:var(--mono);font-size:11px;padding:0 8px}
+  .sl-play input[type=range]{flex:1 1 160px;accent-color:var(--ink);min-width:120px}
+  .sl-play .sl-pline{flex:1 1 100%;display:flex;align-items:center;gap:8px;min-height:28px}
+  #sl-psun svg{display:block}
+  .sl-pkey{display:inline-flex;align-items:center;gap:5px;color:var(--ink-2)}
+  .sl-pkey svg{margin-left:6px}
+  .sl-cramp{display:inline-block;width:34px;height:7px;border-radius:2px;margin-right:6px;background:linear-gradient(90deg,rgba(150,178,232,.08),rgba(40,70,192,.5))}
+  .sl-play .sl-ltog{display:inline-flex;align-items:center;border-radius:14px;padding:0 10px;font-size:10.5px;color:var(--ink-2)}
+  .sl-play .sl-ltog[aria-pressed=false]{opacity:.45;text-decoration:line-through}
+  .sl-boat{background:none;border:0}
   .sl-collapse{width:32px;height:32px;font-size:16px;top:10px;right:10px}
   .sl-dinfo{padding:14px 16px;font-size:12.5px;border-left:1px solid var(--rule-2)}
   .sl-dinfo .row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--rule-2);font-family:var(--mono);font-size:11px;color:var(--ink-2)}
@@ -252,7 +263,9 @@
 
   /* records */
   .sl-recs{margin-top:12px;border-top:1px solid var(--rule)}
-  .sl-rec{display:grid;grid-template-columns:110px 1fr 110px 200px;gap:4px 24px;padding:12px 0;border-bottom:1px solid var(--rule-2)}
+  .sl-rec{display:grid;grid-template-columns:110px 1fr 110px 200px 28px;gap:4px 24px;padding:12px 0;border-bottom:1px solid var(--rule-2);position:relative}
+  .sl-goto{width:28px;height:28px;border-radius:3px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer;font-size:14px;line-height:1;padding:0}
+  .sl-goto:hover{border-color:var(--ink-2)}
   .sl-rec .d{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
   .sl-rec .d small{display:block;color:var(--muted);font-size:10.5px}
   .sl-rec .d .no{display:block;font-family:var(--disp);font-weight:800;font-size:20px;line-height:1;color:var(--ink);letter-spacing:.01em;margin-bottom:3px}
@@ -272,6 +285,7 @@
     .sl-rec .d{grid-column:1 / -1}
     .sl-rec .h{grid-column:1}
     .sl-rec .n{grid-column:2;grid-row:2 / span 2}
+    .sl-goto{position:absolute;top:12px;right:0}
     .sl-map{height:360px}
   }
 
@@ -280,6 +294,20 @@
   .sl-tip.on{opacity:1}
   .sl-foot{margin-top:22px;font-size:11.5px;color:var(--muted);line-height:1.6}
   .sl-foot a{color:var(--ink-2)}
+  /* motion: short and soft, and none at all for anyone who asks for less */
+  html{scroll-behavior:smooth}
+  .sl-fadein{animation:slFade .38s cubic-bezier(.2,.7,.25,1) both}
+  @keyframes slFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  button,.sl-tab{transition:background-color .2s ease,color .2s ease,border-color .2s ease,opacity .2s ease,box-shadow .2s ease}
+  .sl-bfx{interpolate-size:allow-keywords}
+  .sl-bfx::details-content{height:0;overflow:hidden;transition:height .35s ease,content-visibility .35s allow-discrete}
+  .sl-bfx[open]::details-content{height:auto}
+  .sl-bfx summary::before{transition:transform .25s ease}
+  .sl-bfx[open] summary::before{transform:rotate(180deg)}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after,*::details-content{animation:none!important;transition:none!important}
+  }
 </style>
 </head>
 <body>
@@ -568,7 +596,7 @@
   function chaikin(pts,n){
     for(var k=0;k<n;k++){ if(pts.length<3) break; var out=[pts[0]];
       for(var i=0;i<pts.length-1;i++){ var a=pts[i], b=pts[i+1];
-        out.push([a[0]*.75+b[0]*.25, a[1]*.75+b[1]*.25],[a[0]*.25+b[0]*.75, a[1]*.25+b[1]*.75]); }
+        out.push(a.map(function(x,j){ return x*.75+b[j]*.25; }), a.map(function(x,j){ return x*.25+b[j]*.75; })); }
       out.push(pts[pts.length-1]); pts=out; }
     return pts;
   }
@@ -605,26 +633,22 @@
     // a quieter chart underneath, so the routes carry the colour
     m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
     var lines=[];
-    // all routes share one pane drawn at 30%: inside it the age fade still applies, but overlaps can't build
-    // up past 30%. Hovering a route lifts the cap so the one you point at reads clearly
-    var rp=m.createPane("routes"); rp.style.zIndex=410; rp.style.opacity=.3; var rr=L.svg({pane:"routes"});
     /* fade by age: the newest sail at full strength, each older one lighter,
-       reaching 10% at the sixth-newest and staying there. Oldest drawn first,
+       reaching 30% at the sixth-newest and staying there. Oldest drawn first,
        so the recent routes always sit on top. */
     var tracked=D.trips.filter(function(t){return t.poly && inScope(t,WSCOPE);}).sort(function(a,b){return a.date<b.date?-1:1;});
-    function ageOp(t){ var rank=tracked.length-1-tracked.indexOf(t); return 1-0.9*Math.min(rank,5)/5; }
+    function ageOp(t){ var rank=tracked.length-1-tracked.indexOf(t); return 1-0.7*Math.min(rank,5)/5; }
     tracked.forEach(function(t){
       var pts=smooth(decode(t.poly)), op=ageOp(t);
-      var halo=L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.85*op,interactive:false,lineJoin:"round",renderer:rr}).addTo(m);
-      var ln=L.polyline(pts,{color:m2(t.role),weight:1.8,opacity:op,lineJoin:"round",interactive:false,renderer:rr}).addTo(m);
+      var halo=L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.85*op,interactive:false,lineJoin:"round"}).addTo(m);
+      var ln=L.polyline(pts,{color:m2(t.role),weight:1.8,opacity:op,lineJoin:"round",interactive:false}).addTo(m);
       ln._op=op;
       var hit=L.polyline(pts,{color:"#000",weight:14,opacity:0}).addTo(m);
       lines.push({t:t,ln:ln,halo:halo});
       hit.on("mousemove",function(e){
-        rp.style.opacity=1;
         lines.forEach(function(o){ var on=o.t===t; o.ln.setStyle({opacity:on?1:.08,weight:on?3:1.8}); o.halo.setStyle({opacity:on?.95:.06}); });
         halo.bringToFront(); ln.bringToFront(); showTip(tripTip(t), e.originalEvent.clientX, e.originalEvent.clientY); });
-      hit.on("mouseout",function(){ rp.style.opacity=.3; lines.forEach(function(o){ o.ln.setStyle({opacity:o.ln._op,weight:1.8}); o.halo.setStyle({opacity:.85*o.ln._op}); }); hideTip(); });
+      hit.on("mouseout",function(){ lines.forEach(function(o){ o.ln.setStyle({opacity:o.ln._op,weight:1.8}); o.halo.setStyle({opacity:.85*o.ln._op}); }); hideTip(); });
     });
     addMarks(m,22);
   }
@@ -683,13 +707,11 @@
     kn[0]=kn[1]||0;
     // a rolling 7-minute average, so the colour follows the sailing rather than GPS jitter
     var sm=kn.map(function(_,k){ var a=Math.max(0,k-3), z=Math.min(kn.length-1,k+3), t=0; for(j=a;j<=z;j++) t+=kn[j]; return t/(z-a+1); });
-    var g=chaikin(simplify(pts,45),3), last=0;
-    var v=g.map(function(p){                         // speed of the nearest recorded minute, searching forward along the track
-      var best=1e18, bi=last;
-      for(var k=Math.max(0,last-5);k<pts.length;k++){ var d=Math.pow(pts[k][0]-p[0],2)+Math.pow((pts[k][1]-p[1])*.79,2); if(d<best){ best=d; bi=k; } if(k>last+40 && best<1e-7) break; }
-      last=bi; return bi; });
+    // each point carries its minute of the sail through the smoothing, so time along the line is exact
+    var g=chaikin(simplify(pts.map(function(p,i){ return [p[0],p[1],i]; }),45),3);
+    var v=g.map(function(p){ return Math.min(pts.length-1,Math.round(p[2])); });
     var vs=v.map(function(_,k){ var a=Math.max(0,k-4), z=Math.min(v.length-1,k+4), t=0; for(j=a;j<=z;j++) t+=sm[v[j]]; return t/(z-a+1); });
-    return g.map(function(p,k){ return [p[0],p[1],vs[k],v[k]]; });          // lat, lon, kn, minute of the sail
+    return g.map(function(p,k){ return [p[0],p[1],vs[k],p[2]]; });          // lat, lon, kn, minute of the sail
   }
   /* the speed line: the colour is painted as wide, overlapping strokes, then cut out by one continuous
      smooth path used as a mask, so the edge is a single clean curve while the colour blends along it */
@@ -720,30 +742,55 @@
   /* one voyage at a time: the grid steps aside for a big map and the details; "All voyages" (or Esc) goes back */
   var SEL=null;
   function sailNumbers(){ var no={}; D.trips.filter(function(t){ return t.date; }).forEach(function(t,i){ no[t.key]=i+1; }); return no; }
+  /* entrances: a fade-and-rise for things that change in place, and for an opened voyage a grow from the
+     card you pressed (and back into it on the way out) */
+  var CALM=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function enter(el){ if(CALM || !el) return; el.classList.remove("sl-fadein"); void el.offsetWidth; el.classList.add("sl-fadein"); }
+  function grow(el,from,lift){
+    if(CALM || !el || !from) return enter(el);
+    var to=el.getBoundingClientRect(); if(!to.width) return;
+    el.style.transition="none"; el.style.transformOrigin="0 0"; if(lift){ el.style.position="relative"; el.style.zIndex=5; }
+    el.style.transform="translate("+(from.left-to.left)+"px,"+(from.top-to.top)+"px) scale("+(from.width/to.width)+")"; el.style.opacity=".25";
+    void el.offsetWidth;
+    el.style.transition="transform .46s cubic-bezier(.2,.75,.25,1), opacity .32s ease"; el.style.transform=""; el.style.opacity="";
+    setTimeout(function(){ el.style.transition=el.style.transformOrigin=el.style.zIndex=""; if(lift) el.style.position=""; },520);
+  }
   function closeVoyage(){
-    var key=SEL; SEL=null; if(maps.detail){ maps.detail.remove(); delete maps.detail; }
-    var d=document.getElementById("sl-detail"), g=document.getElementById("sl-grid");
+    var key=SEL; SEL=null;
+    var d=document.getElementById("sl-detail"), g=document.getElementById("sl-grid"), was=d.getBoundingClientRect();
+    if(maps.detail){ maps.detail.remove(); delete maps.detail; }
     d.hidden=true; d.innerHTML=""; g.hidden=false; document.getElementById("sl-pager").style.visibility="";
     for(var k in maps){ if(k.indexOf("mini-")===0){ maps[k].invalidateSize(); refit(maps[k]); } }
     var card=key&&g.querySelector('.sl-mini[data-k="'+key+'"]');        // back where you were: the card you opened
-    if(card){ if(getComputedStyle(g).display==="flex") g.scrollLeft=card.offsetLeft-g.offsetLeft; card.scrollIntoView({block:"nearest"}); }
+    if(card){ if(getComputedStyle(g).display==="flex") g.scrollLeft=card.offsetLeft-g.offsetLeft; card.scrollIntoView({block:"nearest",behavior:"instant"}); }
+    enter(g); if(card && was.width) grow(card,{left:was.left,top:was.top,width:was.width},true);
   }
   function openVoyage(key,list){
     var i=list.map(function(t){ return t.key; }).indexOf(key);
     if(i<0){ SEL=null; var dd_=document.getElementById("sl-detail"); dd_.hidden=true; dd_.innerHTML="";       // e.g. filtered out by the harbour switch
       document.getElementById("sl-grid").hidden=false; document.getElementById("sl-pager").style.visibility=""; return; }
     SEL=key; var t=list[i], no=sailNumbers(), d=document.getElementById("sl-detail"), g=document.getElementById("sl-grid");
+    var cardEl=!g.hidden && g.querySelector('.sl-mini[data-k="'+key+'"]'), from=cardEl?cardEl.getBoundingClientRect():null;
     if(maps.detail){ maps.detail.remove(); delete maps.detail; }
     var rows=[["Role",RNAME[t.role]],["Boat",boatName(t)],["Home port",homeOf(t)],
       ["Time",(t.start?t.start+(t.end?'–'+t.end:'')+' · ':'')+fh(t.hours)],["Distance",t.nm!=null?t.nm.toFixed(1)+' nm':'—'],
-      ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · jib '+(t.jib===1?'full':Math.round(t.jib*100)+'%'):''):''],
+      ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · '+(t.jib===1?'full jib':'jib '+Math.round(t.jib*100)+'%'):'')+(t.spinnaker?' · '+t.spinnaker+' spinnaker':''):''],
       ["After sunset",t.afterSunset?Math.round(t.afterSunset)+' min':'']].filter(function(r){ return r[1]; });
     d.innerHTML='<div class="sl-dbar"><button type="button" class="sl-back" id="sl-back">&larr; All voyages</button>'+
       '<div class="sl-dtitle">Sail '+(no[t.key]||'')+'<small>'+fdate(t.date)+(t.club?' · '+t.club:'')+'</small></div>'+
       '<div class="sl-dnav"><button type="button" id="sl-dprev" aria-label="Newer sail"'+(i<=0?' disabled':'')+'>&#8249;</button>'+
       '<span>'+(i+1)+' / '+list.length+'</span><button type="button" id="sl-dnext" aria-label="Older sail"'+(i>=list.length-1?' disabled':'')+'>&#8250;</button></div></div>'+
       '<div class="sl-dbody"><div class="sl-dwrap"><div class="sl-dmap" id="map-detail"></div>'+
-        '<button type="button" class="sl-exp sl-collapse" id="sl-collapse" aria-label="Back to all voyages" title="Back to all voyages">&#10529;</button></div><div class="sl-dinfo">'+
+        '<button type="button" class="sl-exp sl-collapse" id="sl-collapse" aria-label="Back to all voyages" title="Back to all voyages">&#10529;</button>'+
+        (t.poly?'<div class="sl-play"><button type="button" id="sl-pbtn" aria-label="Play the sail">&#9654;</button>'+
+          '<input type="range" id="sl-prange" min="0" step="0.05" value="0" aria-label="Time through the sail">'+
+          '<span class="sl-pkey">'+
+            '<button type="button" class="sl-ltog" data-l="wind" aria-pressed="'+SHOW.wind+'" title="Show or hide the wind">'+
+              windKey()+'wind 0–20+ kn</button>'+
+            '<button type="button" class="sl-ltog" data-l="current" aria-pressed="'+SHOW.current+'" title="Show or hide the tidal current">'+
+              '<i class="sl-cramp"></i>current 0–3 kn</button></span>'+
+          '<span class="sl-pline"><span id="sl-psun"></span><span id="sl-pread"></span></span></div>':'')+
+        '</div><div class="sl-dinfo">'+
         (t.wind?'<div style="margin-bottom:6px">'+bfChip(t.wind,true)+'</div>':'')+
         rows.map(function(r){ return '<div class="row"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join("")+condRow(t)+
         (t.note?'<p>'+t.note+'</p>':'')+'</div></div>';
@@ -756,41 +803,321 @@
     tiles().addTo(m); labels(m);
     var b=t.poly?L.latLngBounds(decode(t.poly)):allBounds(homeOf(t)); m._fit=b.pad(t.poly?.12:.07); m._less=t.poly?0:zoomLess(homeOf(t)); refit(m);
     m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
-    if(t.poly){ var raw=decode(t.poly), pts=smooth(raw);
-      var cl=colourLine(raw,t,"spd-detail",3.4);
-      if(cl) cl.addTo(m);
-      else { L.polyline(pts,{color:cssv("--halo"),weight:6,opacity:.9,interactive:false,lineJoin:"round"}).addTo(m);
-             L.polyline(pts,{color:mc(t.role),weight:3,opacity:1,interactive:false,lineJoin:"round"}).addTo(m); } }
+    drawTrack(m,t,[3.4,6,3]);
     addMarks(m,20,{only:t});
+    if(t.poly) voyagePlayer(m,t,decode(t.poly));
     maps.detail=m;
     d.scrollIntoView({block:"nearest"});
+    if(from) grow(d,from); else enter(d.querySelector(".sl-dbody"));    // from a card: grow out of it; ‹ › and the logbook: fade in
+  }
+  /* the wind and tidal currents over the whole map at one moment of a sail, redrawn as the replay runs:
+     wind as thin arrows on the model grid (pointing where it blows, longer when stronger), currents as
+     dashed arrows at NOAA's prediction points (pointing where the water sets; a dashed ring at slack) */
+  var FieldLayer=L.Layer.extend({
+    initialize:function(t){ this._t=t; this._tau=0; },
+    onAdd:function(map){ this._map=map; this._el=L.DomUtil.create("div","",map.getPane("overlayPane"));
+      this._el.style.position="absolute"; this._el.style.pointerEvents="none";
+      map.getPane("overlayPane").insertBefore(this._el,map.getPane("overlayPane").firstChild);   // under the track
+      map.on("zoomend viewreset moveend",this._project,this); this._project(); },
+    onRemove:function(map){ L.DomUtil.remove(this._el); map.off("zoomend viewreset moveend",this._project,this); },
+    _project:function(){
+      var m=this._map, t=this._t, wf=t.wf, cf=t.cf;
+      this._wp=[]; if(wf) wf.lat.forEach(function(a){ wf.lon.forEach(function(b){ this._wp.push(m.latLngToLayerPoint([a,b])); },this); },this);
+      this._cp=cf?cf.pts.map(function(c){ return m.latLngToLayerPoint([c.lat,c.lon]); }):[];
+      this.draw(this._tau);
+    },
+    draw:function(tau){
+      this._tau=tau; if(!this._wp) return;
+      var t=this._t, wf=t.wf, cf=t.cf, r=Math.PI/180, all=this._wp.concat(this._cp);
+      if(!all.length){ this._el.innerHTML=""; return; }
+      var x0=Math.min.apply(null,all.map(function(p){return p.x;}))-40, y0=Math.min.apply(null,all.map(function(p){return p.y;}))-40;
+      var ink=cssv("--ink"), o='<svg width="10" height="10" style="overflow:visible;display:block">';
+      // blend two time slots as vectors: [direction the arrow points, length]
+      function at(n,t0,step,get){                       // get(slot) gives [degrees, size] or null
+        var f=(tau-t0)/step, i=Math.max(0,Math.min(n-1,Math.floor(f))), j=Math.min(n-1,i+1), w=Math.max(0,Math.min(1,f-i));
+        var a=get(i), b=get(j); if(!a) a=b; if(!b) b=a; if(!a) return null;
+        var x=a[1]*(1-w)*Math.sin(a[0]*r)+b[1]*w*Math.sin(b[0]*r), y=a[1]*(1-w)*Math.cos(a[0]*r)+b[1]*w*Math.cos(b[0]*r);
+        return [Math.atan2(x,y)/r, a[1]*(1-w)+b[1]*w];
+      }
+      function arrow(px,py,deg,len,dash,width,op){
+        var dx=Math.sin(deg*r), dy=-Math.cos(deg*r), hx=px+dx*len/2, hy=py+dy*len/2, tx=px-dx*len/2, ty=py-dy*len/2;
+        return '<g stroke="'+ink+'" stroke-width="'+width+'" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="'+op+'">'+
+          '<line x1="'+(tx-x0).toFixed(1)+'" y1="'+(ty-y0).toFixed(1)+'" x2="'+(hx-x0).toFixed(1)+'" y2="'+(hy-y0).toFixed(1)+'"'+(dash?' stroke-dasharray="2.4 1.8"':'')+'/>'+
+          '<path d="M'+(hx-x0-dx*4+dy*3).toFixed(1)+','+(hy-y0-dy*4-dx*3).toFixed(1)+' L'+(hx-x0).toFixed(1)+','+(hy-y0).toFixed(1)+
+          ' L'+(hx-x0-dx*4-dy*3).toFixed(1)+','+(hy-y0-dy*4+dx*3).toFixed(1)+'"/></g>';
+      }
+      if(wf && SHOW.wind){ var k=0;
+        for(var a=0;a<wf.lat.length;a++) for(var b=0;b<wf.lon.length;b++,k++){
+          var kk=k, v=at(wf.d.length,wf.t0,wf.step,function(i){ var d=wf.d[i][kk]; return d!=null?[(d+180)%360,wf.s[i][kk]]:null; });
+          if(!v) continue; var p=this._wp[kk];
+          if(v[1]<1){ o+='<circle cx="'+(p.x-x0).toFixed(1)+'" cy="'+(p.y-y0).toFixed(1)+'" r="2" fill="none" stroke="'+ink+'" opacity=".35"/>'; continue; }
+          o+=arrow(p.x,p.y,v[0],Math.min(30,8+v[1]*1.1),false,1.2,.4); } }
+      if(cf && SHOW.current) cf.pts.forEach(function(c,i){
+        var v=at(c.v.length,cf.t0,cf.step,function(j){ var e=c.v[j]; return e?[e[1],e[0]]:null; }), p=this._cp[i];
+        if(!v) return;
+        if(v[1]<.2){ o+='<circle cx="'+(p.x-x0).toFixed(1)+'" cy="'+(p.y-y0).toFixed(1)+'" r="4" fill="none" stroke="'+ink+'" stroke-width="1.3" stroke-dasharray="2 1.6" opacity=".6"/>'; return; }
+        o+=arrow(p.x,p.y,v[0],Math.min(32,8+v[1]*8),true,1.6,.6); },this);
+      this._el.innerHTML=o+'</svg>';
+      L.DomUtil.setPosition(this._el,L.point(x0,y0));
+    }
+  });
+  /* the same wind and currents as moving flow, in the manner of Windy: streaks drifting with the wind
+     over the whole map, and on the water a soft colour for the current's strength with pale particles
+     drifting where it sets. The wind is the model grid, blended in space and time; currents spread out
+     from NOAA's prediction points and fade to nothing a few km from the nearest one, so the colour
+     never claims more than the predictions know. Streaks move at a fixed pace on screen - their
+     speed shows the wind's strength, not the replay's clock */
+  var SHOW={wind:true,current:true};
+  var WIND_STEPS=[[.12,.7],[.2,.85],[.3,1],[.42,1.25],[.55,1.5],[.7,1.8]];   // [opacity, width] for 0-4, 4-8 ... 20+ kn
+  function windKey(){ var o='<svg width="58" height="12" aria-hidden="true" style="margin-right:6px">';
+    WIND_STEPS.forEach(function(w,i){ o+='<line x1="'+(3+i*9)+'" y1="10" x2="'+(9+i*9)+'" y2="2" stroke="currentColor" stroke-opacity="'+w[0]+'" stroke-width="'+(w[1]+.3)+'" stroke-linecap="round"/>'; });
+    return o+'</svg>'; }                    // which flow layers are on, kept as you move between voyages
+  var FlowLayer=L.Layer.extend({
+    initialize:function(t){ this._t=t; this._tau=0; this._ctau=null; },
+    onAdd:function(map){
+      this._map=map; var pane=map.getPane("flow")||map.createPane("flow"); pane.style.zIndex=350; pane.style.pointerEvents="none";
+      this._cv=["field","water","air"].map(function(){ var c=L.DomUtil.create("canvas","",pane); c.style.position="absolute"; return c; });
+      map.on("movestart zoomstart",this._hide,this); map.on("moveend zoomend resize",this._reset,this);
+      this._reset(); var me=this; (function loop(){ me._step(); me._raf=requestAnimationFrame(loop); })();
+    },
+    onRemove:function(map){ cancelAnimationFrame(this._raf); this._cv.forEach(L.DomUtil.remove);
+      map.off("movestart zoomstart",this._hide,this); map.off("moveend zoomend resize",this._reset,this); },
+    draw:function(tau){ this._tau=tau; },
+    _hide:function(){ this._cv.forEach(function(c){ c.style.visibility="hidden"; }); this._ready=false; },
+    _reset:function(){
+      var m=this._map, sz=m.getSize(), W=sz.x, H=sz.y, dpr=window.devicePixelRatio||1, o=m.containerPointToLayerPoint([0,0]);
+      if(!W || !H){ this._ready=false; return; }           // map hidden for now (another view is showing)
+      this._W=W; this._H=H; this._dpr=dpr;
+      this._cv.forEach(function(c){ c.width=W*dpr; c.height=H*dpr; c.style.width=W+"px"; c.style.height=H+"px"; c.style.visibility="";
+        L.DomUtil.setPosition(c,o); var x=c.getContext("2d"); x.setTransform(dpr,0,0,dpr,0,0); });
+      // Mercator: longitude depends only on x, latitude only on y
+      this._lon=new Float64Array(W); this._lat=new Float64Array(H);
+      for(var x=0;x<W;x++) this._lon[x]=m.containerPointToLatLng([x,0]).lng;
+      for(var y=0;y<H;y++) this._lat[y]=m.containerPointToLatLng([0,y]).lat;
+      // where the water is: the land polygons drawn into a mask, read back once
+      var mk=document.createElement("canvas"); mk.width=W; mk.height=H; var mx=mk.getContext("2d");
+      mx.fillStyle="#000"; (D.land||[]).forEach(function(poly){ mx.beginPath();
+        poly.forEach(function(p,i){ var q=m.latLngToContainerPoint(p); i?mx.lineTo(q.x,q.y):mx.moveTo(q.x,q.y); }); mx.closePath(); mx.fill(); });
+      this._mask=mk; var md=mx.getImageData(0,0,W,H).data; this._land=new Uint8Array(W*H);
+      for(var i=0;i<W*H;i++) this._land[i]=md[i*4+3]>127?1:0;
+      // current stations in screen space, and how many pixels make a km here
+      var t=this._t; this._wc=null; this._cs=t.cf?t.cf.pts.map(function(c){ return m.latLngToContainerPoint([c.lat,c.lon]); }):[];
+      var a=m.latLngToContainerPoint([37.85,-122.4]), b=m.latLngToContainerPoint([37.85+1/110.54,-122.4]); this._pxkm=Math.abs(a.y-b.y);
+      this._air=this._seed(Math.round(W*H/850),false); this._sea=this._seed(t.cf&&t.cf.pts.length?Math.round(W*H/480):0,true);
+      this._ctau=null; this._ready=true;
+    },
+    _seed:function(n,water){ var a=[]; for(var i=0;i<n;i++) a.push(this._spawn({},water)); return a; },
+    _spawn:function(p,water){
+      for(var k=0;k<20;k++){ p.x=Math.random()*this._W; p.y=Math.random()*this._H; if(!water || !this._land[(p.y|0)*this._W+(p.x|0)]) break; }
+      p.age=0; p.max=40+Math.random()*60; return p;
+    },
+    // wind blowing toward, in knots east and north, at a pixel; the grid is blended for this moment once per frame
+    _windGrid:function(){
+      var wf=this._t.wf; if(!wf) return null;
+      var f=(this._tau-wf.t0)/wf.step, n=wf.d.length, i=Math.max(0,Math.min(n-1,Math.floor(f))), j=Math.min(n-1,i+1), w=Math.max(0,Math.min(1,f-i)), r=Math.PI/180;
+      var U=[], V=[]; for(var k=0;k<wf.d[i].length;k++){
+        var u=0, v=0; [[i,1-w],[j,w]].forEach(function(e){ var d=wf.d[e[0]][k], s=wf.s[e[0]][k]; if(d==null) return; u-=s*Math.sin(d*r)*e[1]; v-=s*Math.cos(d*r)*e[1]; });
+        U.push(u); V.push(v); }
+      return {U:U,V:V,nl:wf.lat.length,nc:wf.lon.length,la0:wf.lat[0],lo0:wf.lon[0]};
+    },
+    _windAt:function(g,x,y){
+      var fi=(this._lat[Math.max(0,Math.min(this._H-1,y|0))]-g.la0)/.03, fj=(this._lon[Math.max(0,Math.min(this._W-1,x|0))]-g.lo0)/.03;
+      fi=Math.max(0,Math.min(g.nl-1.001,fi)); fj=Math.max(0,Math.min(g.nc-1.001,fj));
+      var i=fi|0, j=fj|0, a=fi-i, b=fj-j, k=i*g.nc+j, nc=g.nc;
+      return [(g.U[k]*(1-b)+g.U[k+1]*b)*(1-a)+(g.U[k+nc]*(1-b)+g.U[k+nc+1]*b)*a, (g.V[k]*(1-b)+g.V[k+1]*b)*(1-a)+(g.V[k+nc]*(1-b)+g.V[k+nc+1]*b)*a];
+    },
+    // current at each station for this moment, toward east/north in knots
+    _stations:function(){
+      var cf=this._t.cf, tau=this._tau, r=Math.PI/180; if(!cf) return [];
+      return cf.pts.map(function(c){
+        var f=(tau-cf.t0)/cf.step, n=c.v.length, i=Math.max(0,Math.min(n-1,Math.floor(f))), j=Math.min(n-1,i+1), w=Math.max(0,Math.min(1,f-i)), u=0, v=0;
+        [[i,1-w],[j,w]].forEach(function(e){ var x=c.v[e[0]]; if(!x) return; u+=x[0]*Math.sin(x[1]*r)*e[1]; v+=x[0]*Math.cos(x[1]*r)*e[1]; });
+        return [u,v]; });
+    },
+    // inverse-distance blend of the stations, pulled toward still water by a phantom "no current" weight 3 km out
+    _curAt:function(st,x,y){
+      var R=3*this._pxkm, su=0, sv=0, sw=1/(R*R);
+      for(var i=0;i<st.length;i++){ var p=this._cs[i], d2=(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y)+1, w=1/d2; su+=st[i][0]*w; sv+=st[i][1]*w; sw+=w; }
+      return [su/sw, sv/sw];
+    },
+    _paintField:function(st){
+      var c=this._cv[0], x=c.getContext("2d"), W=this._W, H=this._H, S=6, gw=Math.ceil(W/S), gh=Math.ceil(H/S);
+      x.clearRect(0,0,W,H); if(!st.length) return;
+      var g=document.createElement("canvas"); g.width=gw; g.height=gh; var gx=g.getContext("2d"), im=gx.createImageData(gw,gh);
+      for(var j=0;j<gh;j++) for(var i=0;i<gw;i++){
+        var v=this._curAt(st,i*S+S/2,j*S+S/2), kn=Math.hypot(v[0],v[1]), f=Math.min(1,kn/3), o=(j*gw+i)*4;
+        im.data[o]=Math.round(150-110*f); im.data[o+1]=Math.round(178-108*f); im.data[o+2]=Math.round(232-40*f); im.data[o+3]=Math.round(255*.6*Math.sqrt(f)); }
+      gx.putImageData(im,0,0); x.imageSmoothingEnabled=true; x.drawImage(g,0,0,gw*S,gh*S);
+      x.globalCompositeOperation="destination-out"; x.drawImage(this._mask,0,0,W,H); x.globalCompositeOperation="source-over";
+    },
+    // move each particle one frame and draw its step; cols lists the stroke colours, and vel returns
+    // [dx, dy, colour index] for a pixel
+    _trail:function(c,ps,vel,water,cols,width,fade,alpha){
+      var x=c.getContext("2d"), W=this._W, H=this._H, segs=cols.map(function(){ return []; });
+      x.globalCompositeOperation="destination-in"; x.fillStyle="rgba(0,0,0,"+fade+")"; x.fillRect(0,0,W,H); x.globalCompositeOperation="source-over";
+      for(var i=0;i<ps.length;i++){ var p=ps[i], v=vel(p.x,p.y), nx=p.x+v[0], ny=p.y-v[1];
+        if(++p.age>p.max || nx<0 || ny<0 || nx>=W || ny>=H || (water && this._land[(ny|0)*W+(nx|0)]) || (Math.abs(v[0])+Math.abs(v[1])<.02)){ this._spawn(p,water); continue; }
+        segs[v[2]||0].push(p.x,p.y,nx,ny); p.x=nx; p.y=ny; }
+      x.lineWidth=width; x.lineCap="round"; x.globalAlpha=alpha||1;
+      segs.forEach(function(s,b){ if(!s.length) return; x.beginPath();
+        for(var k=0;k<s.length;k+=4){ x.moveTo(s[k],s[k+1]); x.lineTo(s[k+2],s[k+3]); }
+        x.strokeStyle=cols[b]; if(width.length) x.lineWidth=width[b]; x.stroke(); });
+      x.globalAlpha=1;
+    },
+    _clear:function(c){ c.getContext("2d").clearRect(0,0,this._W,this._H); },
+    _step:function(){
+      if(!this._ready) return;
+      var me=this, st=this._stations();
+      if(!SHOW.current){ if(this._shown!==false){ this._clear(this._cv[0]); this._clear(this._cv[1]); } this._ctau=null; }
+      else {
+        if(this._ctau===null || Math.abs(this._tau-this._ctau)>.5){ this._paintField(st); this._ctau=this._tau; }
+        if(this._sea.length) this._trail(this._cv[1],this._sea,function(x,y){ var v=me._curAt(st,x,y); return [v[0]*.45,v[1]*.45,0]; },true,["rgba(255,255,255,.9)"],1.4,.94);
+      }
+      this._shown=SHOW.current;
+      var g=this._windGrid();
+      if(!SHOW.wind) this._clear(this._cv[2]);
+      else if(g){
+        // stronger wind, darker and heavier streaks: one ink, six steps of 4 kn (20+ is the last)
+        if(!this._wc){ var dk=root.getAttribute("data-theme")==="dark", ink=dk?"235,240,245":"15,26,36";
+          this._wc=WIND_STEPS.map(function(w){ return "rgba("+ink+","+w[0]+")"; }); }
+        this._trail(this._cv[2],this._air,function(x,y){ var v=me._windAt(g,x,y), b=Math.min(5,Math.floor(Math.hypot(v[0],v[1])/4));
+          return [v[0]*.09,v[1]*.09,b]; },false,this._wc,WIND_STEPS.map(function(w){ return w[1]; }),.9);
+      }
+    }
+  });
+  /* replay a sail: a little boat runs along the track, its speed on screen in step with the real speed
+     (time runs at a fixed multiple of real time) and its sails set for the moment's point of sail -
+     sheeted in close-hauled, eased out on a run, always on the side away from the wind */
+  function voyagePlayer(m,t,raw){
+    var n=raw.length; if(n<3) return;
+    var Q=sailPoints(raw,t), nq=Q.length, r=Math.PI/180;
+    var t0=t.start?(+t.start.slice(0,2))*60+(+t.start.slice(3,5)):0;
+    var wrap=m.getContainer().parentNode, btn=wrap.querySelector("#sl-pbtn"), rng=wrap.querySelector("#sl-prange"),
+        rd=wrap.querySelector("#sl-pread"), sun=wrap.querySelector("#sl-psun"), sunAt=-1;
+    var RATE=600;                                       // ten real minutes go by every second
+    var end=Q[nq-1].mn; rng.max=end;
+    var icon=L.divIcon({className:"sl-boat",iconSize:[60,60],iconAnchor:[30,30],html:""});
+    // flowing wind and water; plain arrows for anyone who has asked for less motion
+    var still=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var field=(t.wf||t.cf)?(still?new FieldLayer(t):new FlowLayer(t)):null;
+    if(field) field.addTo(m);
+    [].forEach.call(wrap.querySelectorAll(".sl-ltog"),function(b){ b.onclick=function(){
+      var l=b.getAttribute("data-l"); SHOW[l]=!SHOW[l]; b.setAttribute("aria-pressed",SHOW[l]); if(field) field.draw(tau); }; });
+    var boat=L.marker([Q[0].lat,Q[0].lon],{icon:icon,interactive:false,keyboard:false,zIndexOffset:1000}).addTo(m);
+    var tau=0, qi=0, playing=false, last=0, raf=0;
+    function lerpAng(a,b,f){ var d=((b-a)%360+540)%360-180; return (a+d*f+360)%360; }
+    function boatSvg(hd,wind,c){
+      var C=30, o='<svg width="60" height="60" viewBox="0 0 60 60" style="overflow:visible">';
+      o+='<g transform="rotate('+hd.toFixed(1)+' '+C+' '+C+')">'+
+         '<path d="M30,14 C35.5,20 36,31 34.3,44 L25.7,44 C24,31 24.5,20 30,14 Z" fill="'+cssv("--ink")+'" stroke="'+cssv("--halo")+'" stroke-width="1.4"/>';
+      if(wind!=null && c!=null && c>=0){
+        // the tack is the one the track shows for this minute; the sheeting follows the angle to the wind
+        var rel=((hd-wind)%360+540)%360-180, twa=Math.abs(rel), side=c>=10?1:-1;   // wind over port: sails out to starboard
+        var bm=Math.max(8,Math.min(85,(twa-30)*.55+8))*r, jb=Math.max(8,Math.min(50,(twa-30)*.4+8))*r;
+        var mx=30, my=24, ex=mx+side*Math.sin(bm)*18, ey=my+Math.cos(bm)*18;               // mast to boom end
+        var jx=30, jy=15, kx=jx+side*Math.sin(jb)*12, ky=jy+Math.cos(jb)*12;
+        var sc=cssv((c>=10?"--port":"--stbd")+"2");    // the sails wear the tack's colour, as on the track
+        o+=sail(mx,my,ex,ey,side,9,sc)+sail(jx,jy,kx,ky,side,6,sc);
+      }
+      return o+'<circle cx="30" cy="24" r="1.5" fill="'+cssv("--paper")+'" stroke="'+cssv("--ink")+'" stroke-width=".8"/></g></svg>';
+    }
+    // a sail: a straight luff-to-clew chord with its belly pushed out to leeward
+    function sail(x0,y0,x1,y1,side,belly,col){
+      var L_=Math.hypot(x1-x0,y1-y0)||1, nx=-(y1-y0)/L_, ny=(x1-x0)/L_;
+      if((nx*side)<0 || (nx===0 && ny>0)){ nx=-nx; ny=-ny; }
+      var qx=(x0+x1)/2+nx*belly, qy=(y0+y1)/2+ny*belly;
+      return '<path d="M'+x0+','+y0+' Q'+qx.toFixed(1)+','+qy.toFixed(1)+' '+x1.toFixed(1)+','+y1.toFixed(1)+' Z" fill="'+col+
+             '" stroke="'+cssv("--halo")+'" stroke-width="1" stroke-linejoin="round"/>';
+    }
+    function hhmm(mn){ mn=Math.round(mn)%1440; return ("0"+Math.floor(mn/60)).slice(-2)+":"+("0"+mn%60).slice(-2); }
+    function show(){
+      // the stretch of line the boat is on: its colour on the track is the colour of its first point
+      while(qi>0 && Q[qi].mn>tau) qi--;
+      while(qi<nq-2 && Q[qi+1].mn<=tau) qi++;
+      var a=Q[qi], b=Q[qi+1], f=b.mn>a.mn?Math.max(0,Math.min(1,(tau-a.mn)/(b.mn-a.mn))):0;
+      var pos=[a.lat+(b.lat-a.lat)*f,a.lon+(b.lon-a.lon)*f], hd=lerpAng(a.hd,b.hd,f), k=a.kn+(b.kn-a.kn)*f, wind=a.w, c=a.c;
+      boat.setLatLng(pos); boat.getElement().innerHTML=boatSvg(hd,wind,c);
+      if(field) field.draw(tau);
+      var txt=(t.start?hhmm(t0+tau)+" · ":"")+k.toFixed(1)+" kn";
+      if(c!=null) txt+=c<0?" · drifting":" · "+POS[c%10].label+", "+(c>=10?"port":"starboard")+" tack";
+      var wk=windKnAt(t,tau); if(wind!=null && wk!=null) txt+=" · wind "+Math.round(wk)+" kn "+COMPASS16[Math.round(wind/22.5)%16];
+      rd.textContent=txt; rng.value=tau;
+      var cm=Math.round(t0+tau)%1440; if(t.start && cm!==sunAt){ sun.innerHTML=sunDial(t,cm); sunAt=cm; }
+    }
+    function frame(now){
+      if(!playing) return;
+      if(last) tau+=(now-last)/1000*RATE/60;      // real minutes advanced this frame
+      last=now;
+      if(tau>=end){ tau=end; stop(); show(); return; }
+      show(); raf=requestAnimationFrame(frame);
+    }
+    function play(){ if(tau>=end) tau=0; playing=true; last=0; btn.innerHTML="&#10073;&#10073;"; btn.setAttribute("aria-label","Pause"); raf=requestAnimationFrame(frame); }
+    function stop(){ playing=false; cancelAnimationFrame(raf); btn.innerHTML="&#9654;"; btn.setAttribute("aria-label","Play the sail"); }
+    btn.onclick=function(){ playing?stop():play(); };
+    rng.oninput=function(){ tau=+rng.value; show(); };
+    m.on("unload",stop);
+    show();
   }
   document.addEventListener("keydown",function(e){ if(e.key==="Escape" && SEL) closeVoyage(); });
   /* point of sail: the angle between where the boat is heading and where the wind comes from (the
      sail's median wind along the track). Headings are averaged over a few points so tacks don't flicker. */
   var POS=[{hi:50,label:"close-hauled"},{hi:80,label:"close reach"},{hi:110,label:"beam reach"},{hi:150,label:"broad reach"},{hi:181,label:"run"}];
-  function posTrack(raw,t){
-    var q=speedTrack(raw), w0=(t.wind&&t.wind.deg!=null)?t.wind.deg:(t.avg&&t.avg.wind?t.avg.wind.deg:null), K=Math.cos(37.85*Math.PI/180);
+  /* wind (from, degrees) at a minute of the sail: the 5-minute series along the track, blended as vectors
+     between samples; in near calm the model's direction means little, so the sail's overall wind stands in */
+  function windFn(t){
+    var w0=(t.wind&&t.wind.deg!=null)?t.wind.deg:(t.avg&&t.avg.wind?t.avg.wind.deg:null), ws=t.ws||[];
     if(w0==null) return null;
-    // wind at a minute of the sail: the 5-minute series along the track, blended as vectors between samples;
-    // in near calm the model's direction means little, so the sail's overall wind stands in
-    var ws=t.ws||[];
-    function windAt(mn){
+    return function(mn){
       if(!ws.length) return w0;
       var i=0; while(i<ws.length-1 && ws[i+1][0]<=mn) i++;
       var a=ws[i], b=ws[Math.min(i+1,ws.length-1)], f=b[0]>a[0]?Math.max(0,Math.min(1,(mn-a[0])/(b[0]-a[0]))):0;
       if(a[2]*(1-f)+b[2]*f<2) return w0;
       var r=Math.PI/180, x=a[2]*(1-f)*Math.sin(a[1]*r)+b[2]*f*Math.sin(b[1]*r), y=a[2]*(1-f)*Math.cos(a[1]*r)+b[2]*f*Math.cos(b[1]*r);
-      return (Math.atan2(x,y)/r+360)%360; }
-    var hv=q.map(function(_,k){ var a=q[Math.max(0,k-1)], b=q[Math.min(q.length-1,k+1)]; return [(b[1]-a[1])*K,(b[0]-a[0])]; });
+      return (Math.atan2(x,y)/r+360)%360; };
+  }
+  /* the drawn route, point by point, with everything the colours and the replay need: minute of the sail,
+     speed, heading along the line, wind then, and point of sail. The track and the boat both read from
+     this, so they always agree */
+  function sailPoints(raw,t){
+    var windAt=windFn(t), q=speedTrack(raw), K=Math.cos(37.85*Math.PI/180), n=q.length;
+    var H=q.map(function(_,k){ var a=q[Math.max(0,k-2)], b=q[Math.min(n-1,k+2)];
+      return (Math.atan2((b[1]-a[1])*K,b[0]-a[0])*180/Math.PI+360)%360; });
     return q.map(function(p,k){
-      var sx=0, sy=0; for(var j=Math.max(0,k-4);j<=Math.min(q.length-1,k+4);j++){ sx+=hv[j][0]; sy+=hv[j][1]; }
-      var w=windAt(p[3]), hd=(Math.atan2(sx,sy)*180/Math.PI+360)%360, rel=((hd-w)%360+540)%360-180, twa=Math.abs(rel), c=0;
-      if(p[2]<1) return [p[0],p[1],-1];                // docking or drifting: not sailing
-      while(twa>=POS[c].hi) c++;
-      // heading clockwise of the wind puts the wind over the port side: port tack (+10)
-      return [p[0],p[1],c+(rel>0?10:0)];
+      var w=windAt?windAt(p[3]):null, c=null;
+      if(w!=null){
+        if(p[2]<1) c=-1;                                // docking or drifting: not sailing
+        else { var rel=((H[k]-w)%360+540)%360-180, i=0; while(Math.abs(rel)>=POS[i].hi) i++;
+          c=i+(rel>0?10:0); } }                         // heading clockwise of the wind: wind over port, port tack (+10)
+      return {lat:p[0],lon:p[1],kn:p[2],mn:p[3],hd:H[k],w:w,c:c};
     });
+  }
+  var COMPASS16=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  /* a 24-hour sun dial: the sun's highest point (solar noon) at the top, morning on the left and evening
+     on the right, so the horizon is level. The part above it is daylight for that date; the sun sits on
+     the rim at the time */
+  function sunDial(t,clock){
+    function mins(s){ return s?(+s.slice(0,2))*60+(+s.slice(3,5)):null; }
+    var R=12, C=16, sr=mins(t.sunrise), ss=mins(t.sunset); if(sr==null || ss==null) return "";
+    var noon=(sr+ss)/2;
+    function pt(m,r){ var a=(m-noon+720)/1440*2*Math.PI; return [(C-r*Math.sin(a)).toFixed(2),(C+r*Math.cos(a)).toFixed(2)]; }
+    var A=pt(sr,R), B=pt(ss,R), day=ss-sr, up=clock>=sr && clock<=ss, S=pt(clock,R);
+    var o='<svg width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="'+(up?'daylight':'after dark')+', sunset '+t.sunset+'"><title>sunrise '+t.sunrise+' · sunset '+t.sunset+'</title>'+
+      '<path d="M'+A+' A'+R+','+R+' 0 '+(day>720?1:0)+' 1 '+B+' Z" fill="#cfe0ef"/>'+
+      '<path d="M'+B+' A'+R+','+R+' 0 '+(day>720?0:1)+' 1 '+A+' Z" fill="#1d2a3a"/>'+
+      '<line x1="'+A[0]+'" y1="'+A[1]+'" x2="'+B[0]+'" y2="'+B[1]+'" stroke="'+cssv("--paper")+'" stroke-width=".8"/>'+
+      '<circle cx="'+C+'" cy="'+C+'" r="'+R+'" fill="none" stroke="'+cssv("--rule")+'"/>';
+    o+=up?'<circle cx="'+S[0]+'" cy="'+S[1]+'" r="3.4" fill="#f4b72f" stroke="'+cssv("--paper")+'" stroke-width="1.2"/>'
+         :'<circle cx="'+S[0]+'" cy="'+S[1]+'" r="3" fill="#1d2a3a" stroke="#e8edf2" stroke-width="1.2"/>';
+    return o+'</svg>';
+  }
+  function windKnAt(t,mn){                             // wind speed where the boat was, from the 5-minute series
+    var ws=t.ws||[]; if(!ws.length) return null;
+    var i=0; while(i<ws.length-1 && ws[i+1][0]<=mn) i++;
+    var a=ws[i], b=ws[Math.min(i+1,ws.length-1)], f=b[0]>a[0]?Math.max(0,Math.min(1,(mn-a[0])/(b[0]-a[0]))):0;
+    return a[2]*(1-f)+b[2]*f; }
+  function posTrack(raw,t){
+    if(!windFn(t)) return null;
+    return sailPoints(raw,t).map(function(p){ return [p.lat,p.lon,p.c]; });
   }
   /* the legend for point of sail: the classic wheel - wind from the top, a boat in the middle, and the
      sectors around it in the route colours, mirrored for port and starboard tacks */
@@ -823,15 +1150,18 @@
     if(RCOL==="pos"){ var q=posTrack(raw,t); if(q) return new SpeedLine(q,id,w,function(a){ return posColour(a); }); }
     return null;
   }
-  function buildTrips(){
-    var g=document.getElementById("sl-grid"), list=D.trips.filter(function(t){return t.date && inScope(t,WSCOPE) && (t.poly||(t.cond && !t.approx));}).slice().reverse();
-    g.innerHTML=list.map(function(t){
-      return '<div class="sl-mini" data-k="'+t.key+'"><div class="m" id="mini-'+t.key+'"></div>'+(t.poly?'':'<div class="sl-notrack"><span>no track recorded</span></div>')+
-        '<button type="button" class="sl-exp" data-k="'+t.key+'" aria-label="Open this voyage" title="Open this voyage">&#10530;</button>'+
-        '<div class="c"><div class="r1"><div><b>'+fdate(t.date)+'</b> · '+RNAME[t.role]+'</div>'+(t.wind?bfChip(t.wind,false):'')+'</div>'+
-        '<span>'+(t.boat||t.type||'Boat to confirm')+' · '+fh(t.hours)+' · '+t.nm.toFixed(1)+' nm</span>'+condRow(t)+'</div></div>';
-    }).join("");
-    // two legend groups that wrap as whole units, so the four roles never split apart
+  function voyageList(){ return D.trips.filter(function(t){return t.date && inScope(t,WSCOPE) && (t.poly||(t.cond && !t.approx));}).slice().reverse(); }
+  /* from the logbook straight to a sail's detail: Voyage by voyage, widened to the whole bay if the
+     harbour switch would hide it, then scrolled into view */
+  function goVoyage(key){
+    var t=D.trips.filter(function(x){ return x.key===key; })[0]; if(!t) return;
+    if(!inScope(t,WSCOPE)){ WSCOPE="all"; SEL=key; VIEW="trips"; drawScopes(); resetMaps(); }
+    else { var was=built.trips; SEL=key; showView("trips"); if(was) openVoyage(key,voyageList()); }   // a fresh build opens SEL itself
+    document.getElementById("sl-detail").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  /* the legend under the voyage cards: conditions, then the route colours and their switch. Two groups
+     that wrap as whole units, so the four roles never split apart */
+  function routeKey(){
     document.getElementById("sl-condkey").innerHTML=
       '<div class="sl-legrp"><span class="lab">Averaged over the sail</span>'+
         '<span>'+glyphBox(barb(270,15))+'wind: median, with its 10–90% range below</span>'+
@@ -846,8 +1176,31 @@
           : RCOL==="speed"
           ? '<span>'+SPEED_LO+'</span><span><i class="spgrad" style="background:linear-gradient(90deg,'+[1,2,3,4,5,6].map(function(i){ return cssv("--sp"+i); }).join(",")+')"></i></span><span>'+SPEED_HI+'+ kn</span>'
           : ROLES.map(function(r){ return '<span><i class="sw" style="background:'+rc(r)+'"></i>'+RNAME[r].toLowerCase()+'</span>'; }).join(""))+'</div>';
+    // switching only recolours the tracks: maps, the replay and its position all stay as they are
     Array.prototype.forEach.call(document.querySelectorAll("[data-rcol]"),function(b){ b.onclick=function(){
-      RCOL=b.getAttribute("data-rcol"); for(var k in maps){ if(k.indexOf("mini-")===0){ maps[k].remove(); delete maps[k]; } } buildTrips(); }; });
+      RCOL=b.getAttribute("data-rcol"); routeKey();
+      for(var k in maps){ if(maps[k]._trip) drawTrack(maps[k],maps[k]._trip,maps[k]._tw); } }; });
+  }
+  /* a voyage's route on a map, in the current colour mode; drawn again in place when the mode changes.
+     w: [coloured line, halo, role line] widths */
+  function drawTrack(m,t,w){
+    (m._track||[]).forEach(function(l){ m.removeLayer(l); }); m._track=[]; m._trip=t; m._tw=w;
+    if(!t.poly) return;
+    var raw=decode(t.poly), cl=colourLine(raw,t,"spd-"+m.getContainer().id,w[0]);
+    if(cl) m._track.push(cl.addTo(m));
+    else { var pts=smooth(raw);            // the halo goes on the same layer as the route, so it sits underneath it
+      m._track.push(L.polyline(pts,{color:cssv("--halo"),weight:w[1],opacity:.9,interactive:false,lineJoin:"round"}).addTo(m),
+                    L.polyline(pts,{color:mc(t.role),weight:w[2],opacity:1,interactive:false,lineJoin:"round"}).addTo(m)); }
+  }
+  function buildTrips(){
+    var g=document.getElementById("sl-grid"), list=voyageList();
+    g.innerHTML=list.map(function(t){
+      return '<div class="sl-mini" data-k="'+t.key+'"><div class="m" id="mini-'+t.key+'"></div>'+(t.poly?'':'<div class="sl-notrack"><span>no track recorded</span></div>')+
+        '<button type="button" class="sl-exp" data-k="'+t.key+'" aria-label="Open this voyage" title="Open this voyage">&#10530;</button>'+
+        '<div class="c"><div class="r1"><div><b>'+fdate(t.date)+'</b> · '+RNAME[t.role]+'</div>'+(t.wind?bfChip(t.wind,false):'')+'</div>'+
+        '<span>'+(t.boat||t.type||'Boat to confirm')+' · '+fh(t.hours)+' · '+t.nm.toFixed(1)+' nm</span>'+condRow(t)+'</div></div>';
+    }).join("");
+    routeKey();
     Array.prototype.forEach.call(g.querySelectorAll(".sl-exp, .sl-mini .m"),function(el){ el.onclick=function(e){ e.stopPropagation();
       openVoyage(el.getAttribute("data-k")||el.parentNode.getAttribute("data-k"),list); }; });
     if(SEL) openVoyage(SEL,list);
@@ -873,13 +1226,7 @@
         doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,zoomSnap:0.1});
       tiles().addTo(m); m._fit=b.pad(0.07); m._less=zoomLess(homeOf(t)); refit(m);
       m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
-      if(t.poly){
-        var raw=decode(t.poly), pts=smooth(raw);
-        // the halo goes on the same layer as the route, so it sits underneath it
-        var cl=colourLine(raw,t,"spd-"+t.key);
-        if(cl) cl.addTo(m); else L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.9,interactive:false,lineJoin:"round"}).addTo(m);
-        if(!cl) L.polyline(pts,{color:mc(t.role),weight:2,opacity:1,interactive:false,lineJoin:"round"}).addTo(m);
-      }
+      drawTrack(m,t,[2.4,4,2]);
       addMarks(m,15,{quiet:true,only:t});
       maps["mini-"+t.key]=m;
     });
@@ -931,6 +1278,7 @@
     ["all","trips","heat"].forEach(function(x){ document.getElementById("pane-"+x).hidden = x!==v; });
     Array.prototype.forEach.call(document.querySelectorAll(".sl-tab[data-v]"),function(b){ b.setAttribute("aria-selected", b.getAttribute("data-v")===v?"true":"false"); });
     if(!built[v]){ built[v]=1; ({all:buildAll,trips:buildTrips,heat:buildHeat})[v](); }
+    enter(document.getElementById("pane-"+v));
     for(var k in maps){ maps[k].invalidateSize(); if(maps[k]._fit) refit(maps[k]); }
   }
   var rz=null;
@@ -957,8 +1305,11 @@
         '<div class="h"><small>Home port</small>'+homeOf(t)+'</div>'+
         '<div class="n">'+(t.hours?(t.approx?'≈ ':'')+fh(t.hours)+'<small>'+(t.nm!=null?t.nm.toFixed(1)+' nm':'no track')+'</small>':'no track')+
           (t.wind?'<small style="margin-top:6px">'+bfChip(t.wind,true)+'</small><small>'+(t.wind.med!=null?t.wind.med+' kn '+t.wind.from+' · '+t.wind.p10+'–'+t.wind.p90:(t.wind.avg+' kn '+t.wind.from))+' · gusts '+t.wind.gust+'</small>':'')+
-          '</div></div>';
+          '</div>'+
+        (t.date && (t.poly||(t.cond && !t.approx))?'<button type="button" class="sl-goto" data-k="'+t.key+'" aria-label="Open Sail '+no[t.key]+' in Voyage by voyage" title="Open in Voyage by voyage">&#10530;</button>':'<span></span>')+
+        '</div>';
     }).join("");
+    Array.prototype.forEach.call(document.querySelectorAll("#sl-recs .sl-goto"),function(b){ b.onclick=function(){ goVoyage(b.getAttribute("data-k")); }; });
     document.getElementById("sl-foot").innerHTML=
       'Wind is the model value from '+
       '<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> for each sail\'s time and place; '+

@@ -105,12 +105,14 @@ def wind_at(when, lat, lon, cache, key):
     return {"kn": round(kn), "deg": round(deg), "from": compass(deg)}
 
 def current_at(when, lat, lon, cache):
-    """Tidal current at one moment and place, from the nearest NOAA point.
-
-    Between successive slack/max events the speed follows the usual
-    half-cosine curve. Positive is flood, negative ebb."""
+    """Tidal current at one moment and place, from the nearest NOAA point."""
     k = math.cos(math.radians(lat))
     sid, bin_, name, slat, slon = min(CURRENTS, key=lambda c: (c[3] - lat) ** 2 + ((c[4] - lon) * k) ** 2)
+    return current_station(sid, bin_, name, when, cache)
+
+def current_station(sid, bin_, name, when, cache):
+    """Tidal current at one NOAA prediction point. Between successive slack/max events the
+    speed follows the usual half-cosine curve. Positive is flood, negative ebb."""
     ck = "cur:%s:%s" % (sid, when.strftime("%Y%m%d"))
     if ck not in cache:
         d0 = (when - dt.timedelta(days=1)).strftime("%Y%m%d"); d1 = (when + dt.timedelta(days=1)).strftime("%Y%m%d")
@@ -323,39 +325,110 @@ def model_at(when, lat, lon, cache):
     return d, sa * (1 - f) + sb * f
 
 def wind_series(start, pts, cache, step=5):
-    """Wind where the boat was, every few minutes: [minute, from deg, kn]. The model gives the pattern
-    across the Bay; nearby stations that measured the wind pull its direction toward what was really
-    blowing. Each station's correction (measured minus model at the station, averaged over half an
-    hour) counts for less with distance - full within a few km, nothing past ~20 km - and for less
-    in light air, when a vane's reading means little."""
-    out = []; day = start.date()
-    obs = {sid: station_obs(sid, day, cache) for sid, *_ in WIND_STATIONS}
+    """Wind where the boat was, every few minutes: [minute, from deg, kn], corrected toward the stations."""
+    obs = {sid: station_obs(sid, start.date(), cache) for sid, *_ in WIND_STATIONS}; out = []
     for i in range(0, len(pts), step):
-        when = start + dt.timedelta(minutes=i); lat, lon = pts[i]
-        m = model_at(when, lat, lon, cache)
-        if not m: continue
-        corr, wsum = [], 0
-        for sid, name, slat, slon in WIND_STATIONS:
-            o = obs[sid]
-            near = [o[k] for k in ("%02d:%02d" % divmod(when.hour * 60 + when.minute + dm, 60) for dm in range(-15, 16))
-                    if k in o]
-            if not near: continue
-            od = vec_mean([(d, s) for d, s in near]); okn = sum(s for _, s in near) / len(near)
-            sm = model_at(when, slat, slon, cache)
-            if od is None or not sm: continue
-            km = math.hypot((lat - slat) * 110.54, (lon - slon) * 111.32 * math.cos(math.radians(lat)))
-            w = math.exp(-(km / 10) ** 2) * min(1, okn / 4)
-            corr.append((((od - sm[0]) % 360 + 540) % 360 - 180, w)); wsum += w
-        d = m[0]
-        if wsum > 0:
-            off = sum(c * w for c, w in corr) / wsum
-            d = (d + off * min(1, wsum)) % 360
-        out.append([i, round(d), round(m[1], 1)])
+        w = corrected_wind(start + dt.timedelta(minutes=i), pts[i][0], pts[i][1], obs, cache)
+        if w: out.append([i, round(w[0]), round(w[1], 1)])
     return out
 
-def sunset_local(date, lat=37.86, lon=-122.48):
-    """Sunset (sun 0.833 deg below the horizon) as a local wall-clock datetime, from
-    the standard NOAA solar equations - good to a minute or two."""
+def corrected_wind(when, lat, lon, obs, cache):
+    """Model wind at a moment and place, its direction pulled toward what nearby stations measured:
+    each station's correction (measured minus model at the station, averaged over half an hour)
+    counts for less with distance - full within a few km, nothing past ~20 km - and for less in
+    light air, when a vane's reading means little. Returns (from deg, kn) or None."""
+    m = model_at(when, lat, lon, cache)
+    if not m: return None
+    corr, wsum = [], 0
+    for sid, name, slat, slon in WIND_STATIONS:
+        o = obs[sid]
+        near = [o[k] for k in ("%02d:%02d" % divmod(when.hour * 60 + when.minute + dm, 60) for dm in range(-15, 16))
+                if k in o]
+        if not near: continue
+        od = vec_mean([(d, s) for d, s in near]); okn = sum(s for _, s in near) / len(near)
+        sm = model_at(when, slat, slon, cache)
+        if od is None or not sm: continue
+        km = math.hypot((lat - slat) * 110.54, (lon - slon) * 111.32 * math.cos(math.radians(lat)))
+        w = math.exp(-(km / 10) ** 2) * min(1, okn / 4)
+        corr.append((((od - sm[0]) % 360 + 540) % 360 - 180, w)); wsum += w
+    d = m[0]
+    if wsum > 0: d = (d + sum(c * w for c, w in corr) / wsum * min(1, wsum)) % 360
+    return d, m[1]
+
+def w15_prefetch(day, cells, cache):
+    """Fill the 15-minute model cache for many cells at once (Open-Meteo takes lists of places)."""
+    key = lambda c: "w15:%s:%.3f:%.3f" % (day, c[0], c[1])
+    miss = [c for c in cells if key(c) not in cache]
+    for k in range(0, len(miss), 50):
+        ch = miss[k:k + 50]
+        q = urllib.parse.urlencode({"latitude": ",".join("%.3f" % c[0] for c in ch),
+            "longitude": ",".join("%.3f" % c[1] for c in ch), "start_date": day, "end_date": day,
+            "minutely_15": "wind_speed_10m,wind_gusts_10m,wind_direction_10m", "wind_speed_unit": "kn",
+            "timezone": "America/Los_Angeles"})
+        res = json.load(urllib.request.urlopen("https://historical-forecast-api.open-meteo.com/v1/forecast?" + q, timeout=60))
+        for c, r in zip(ch, res if isinstance(res, list) else [res]):
+            m = r["minutely_15"]
+            cache[key(c)] = {"t": [x[11:] for x in m["time"]], "s": m["wind_speed_10m"],
+                             "g": m["wind_gusts_10m"], "d": m["wind_direction_10m"]}
+
+def trip_frame(pts, pad=.35):
+    la = [p[0] for p in pts]; lo = [p[1] for p in pts]
+    dla = (max(la) - min(la)) * pad + .01; dlo = (max(lo) - min(lo)) * pad + .015
+    return min(la) - dla, max(la) + dla, min(lo) - dlo, max(lo) + dlo
+
+def wind_field(start, mins, pts, cache):
+    """Wind over the whole map of a sail, for the replay: one point per model cell (0.03 degrees,
+    ~3 km) across the area around the track, every 15 minutes from just before the start to
+    just after the end, each corrected toward the stations like the track's own wind."""
+    la0, la1, lo0, lo1 = trip_frame(pts)
+    lats = [round(i * .03, 3) for i in range(math.floor(la0 / .03), math.ceil(la1 / .03) + 1)]
+    lons = [round(i * .03, 3) for i in range(math.floor(lo0 / .03), math.ceil(lo1 / .03) + 1)]
+    day = start.strftime("%Y-%m-%d")
+    w15_prefetch(day, [(a, b) for a in lats for b in lons] + [(round(round(s[2] / .03) * .03, 3), round(round(s[3] / .03) * .03, 3))
+                       for s in WIND_STATIONS], cache)
+    obs = {sid: station_obs(sid, start.date(), cache) for sid, *_ in WIND_STATIONS}
+    first = -(start.minute % 15) - 15
+    slots = list(range(first, mins + 30, 15))
+    d, s = [], []
+    for m in slots:
+        when = start + dt.timedelta(minutes=m); rd, rs = [], []
+        for a in lats:
+            for b in lons:
+                w = corrected_wind(when, a, b, obs, cache)
+                rd.append(round(w[0]) if w else None); rs.append(round(w[1], 1) if w else None)
+        d.append(rd); s.append(rs)
+    return {"lat": lats, "lon": lons, "t0": first, "step": 15, "d": d, "s": s}
+
+def current_points(cache):
+    """NOAA's tidal-current prediction points in the Central Bay, thinned so no two are closer than ~1 km."""
+    if "cpstations" not in cache:
+        st = json.load(urllib.request.urlopen(
+            "https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type=currentpredictions&units=english", timeout=60))["stations"]
+        cache["cpstations"] = [[x["id"], x.get("currbin") or 1, x["name"], x["lat"], x["lng"]] for x in st
+                               if 37.70 <= x["lat"] <= 38.0 and -122.56 <= x["lng"] <= -122.25]
+    keep = []
+    for sid, b, name, la, lo in cache["cpstations"]:
+        if all(math.hypot((la - k[3]) * 110.5, (lo - k[4]) * 88) > 1.0 for k in keep): keep.append([sid, b, name, la, lo])
+    return keep
+
+def current_field(start, mins, pts, cache, step=10):
+    """Tidal current at each NOAA prediction point around a sail, every 10 minutes: for the replay."""
+    la0, la1, lo0, lo1 = trip_frame(pts); out = []
+    for sid, b, name, la, lo in current_points(cache):
+        if not (la0 <= la <= la1 and lo0 <= lo <= lo1): continue
+        ser = []
+        try:
+            for m in range(-step, mins + 2 * step, step):
+                c = current_station(sid, b, name, start + dt.timedelta(minutes=m), cache)
+                ser.append([c["kn"], round(c["toward"])] if c and c.get("toward") is not None else None)
+        except Exception:
+            continue
+        if any(ser): out.append({"lat": round(la, 4), "lon": round(lo, 4), "v": ser})
+    return {"t0": -step, "step": step, "pts": out}
+
+def sunset_local(date, lat=37.86, lon=-122.48, rise=False):
+    """Sunset (or sunrise; sun 0.833 deg below the horizon) as a local wall-clock datetime,
+    from the standard NOAA solar equations - good to a minute or two."""
     from zoneinfo import ZoneInfo
     d = dt.date.fromisoformat(date); n = d.timetuple().tm_yday
     g = 2 * math.pi / 365 * (n - 1)
@@ -365,7 +438,7 @@ def sunset_local(date, lat=37.86, lon=-122.48):
             + 0.000907 * math.sin(2 * g) - 0.002697 * math.cos(3 * g) + 0.00148 * math.sin(3 * g))
     la = math.radians(lat)
     ha = math.degrees(math.acos(math.cos(math.radians(90.833)) / (math.cos(la) * math.cos(decl)) - math.tan(la) * math.tan(decl)))
-    utc_min = 720 - 4 * (lon - ha) - eqt
+    utc_min = 720 - 4 * (lon + (ha if rise else -ha)) - eqt
     utc = dt.datetime(d.year, d.month, d.day, tzinfo=dt.timezone.utc) + dt.timedelta(minutes=utc_min)
     return utc.astimezone(ZoneInfo("America/Los_Angeles")).replace(tzinfo=None)
 
@@ -423,6 +496,9 @@ def main():
                               for i in range(0, len(pts), 15)], cache)
             if w15: r["wind"] = w15
             r["ws"] = wind_series(start.replace(tzinfo=None), pts, cache)
+            # the whole map's wind and currents through the sail, for the replay
+            r["wf"] = wind_field(start.replace(tzinfo=None), len(pts), pts, cache)
+            r["cf"] = current_field(start.replace(tzinfo=None), len(pts), pts, cache)
             r["avg"] = {"wind": {"kn": r["wind"].get("med", r["wind"].get("avg")), "deg": r["wind"]["deg"], "from": r["wind"]["from"]},
                         "current": current_avg(samples, cache)}
         if r.get("date") and r.get("near") and not r.get("wind"):     # untracked day with a known place
@@ -445,9 +521,10 @@ def main():
             en_ = dt.datetime.strptime(r["date"] + " " + r["end"], "%Y-%m-%d %H:%M") if r.get("end") else st_ + dt.timedelta(hours=r["hours"])
             ss = sunset_local(r["date"])
             r["sunset"] = ss.strftime("%H:%M")
+            r["sunrise"] = sunset_local(r["date"], rise=True).strftime("%H:%M")
             r["afterSunset"] = max(0, round((en_ - max(ss, st_)).total_seconds() / 60))
     out.sort(key=lambda r: (r.get("date") is None, r.get("date") or "", r["key"]))
-    json.dump(cache, open("conditions.json", "w"), indent=1)
+    json.dump(cache, open("conditions.json", "w"), separators=(",", ":"))
     data = {"generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "areas": [{"name": a[0], "lat": a[1], "lon": a[2]} for a in AREAS], "harbour": harbour,
             "harbours": list(harbours.values()), "trips": out}
