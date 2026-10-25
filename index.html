@@ -30,6 +30,12 @@
     /* sequential hours ramp for the calendar */
     --q0:#E9EEF1; --q1:#cde2fb; --q2:#9ec5f4; --q3:#6da7ec; --q4:#3987e5; --q5:#1c5cab; --q6:#0d366b;
     --halo:#ffffff;
+    /* boat speed on the voyage thumbnails: one teal hue, light to dark with speed - validated (dataviz --ordinal) */
+    --sp1:#6cbfb1; --sp2:#47a798; --sp3:#2d8c7f; --sp4:#1c7166; --sp5:#10564d; --sp6:#073d36;
+    /* point of sail by tack, after a boat's navigation lights: port red, starboard blue-green. Darkest
+       close-hauled, lightest on a run. Each ramp is ordinal, and the pairs stay apart under colour blindness. */
+    --port1:#7d1a14; --port2:#a82c22; --port3:#cc4537; --port4:#e06b5e; --port5:#e98a7f;
+    --stbd1:#0b4a63; --stbd2:#15688a; --stbd3:#2187ad; --stbd4:#4fa3c6; --stbd5:#79bcd8;
     --bf1:#f39462; --bf2:#eb6834; --bf3:#d4561f; --bf4:#b24418; --bf5:#8f3512; --bf6:#6e280d;
     --disp:'Big Shoulders Display','Arial Narrow',sans-serif;
     --body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -42,6 +48,9 @@
     --r-student:#184f95; --r-crew:#2a78d6; --r-mate:#5598e7; --r-skipper:#9ec5f4;
     --q0:#1D252D; --q1:#0d366b; --q2:#184f95; --q3:#256abf; --q4:#3987e5; --q5:#6da7ec; --q6:#9ec5f4;
     --halo:#151B21;
+    --sp1:#12655b; --sp2:#1d8073; --sp3:#2f9a8b; --sp4:#52b3a4; --sp5:#7ecabe; --sp6:#ace0d7;
+    --port1:#f2a69c; --port2:#e8867b; --port3:#dc6556; --port4:#c94a3c; --port5:#ad3a2e;
+    --stbd1:#a3d3e8; --stbd2:#7fbfdd; --stbd3:#57a8cf; --stbd4:#3a8fbd; --stbd5:#2a76a3;
     --bf1:#8f3512; --bf2:#b24418; --bf3:#d4561f; --bf4:#eb6834; --bf5:#f39462; --bf6:#f8b48f;
   }
   html,body{background:var(--page);margin:0}
@@ -134,6 +143,7 @@
   .sl-condkey{display:flex;flex-wrap:wrap;gap:10px 32px;margin-top:14px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
   .sl-legrp{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px}
   .sl-legrp.nowrap{flex-wrap:nowrap}
+  @media (max-width:760px){ .sl-legrp.nowrap{flex-wrap:wrap} }
   .sl-legrp span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
   .sl-legrp .lab{color:var(--ink-2);font-weight:500}
   .sl-legrp .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ink);margin:0 2px}
@@ -195,6 +205,44 @@
   .sl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
   .sl-mini{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--paper)}
   .sl-mini .m{height:150px;background:var(--rule-2)}
+  .sl-mini{position:relative}
+  .sl-mini .m{cursor:zoom-in}
+  #pane-trips [hidden]{display:none!important}
+  .sl-exp{position:absolute;top:6px;right:6px;z-index:600;width:26px;height:26px;border-radius:3px;border:1px solid var(--rule);
+    background:color-mix(in srgb,var(--paper) 88%,transparent);color:var(--ink);font-size:14px;line-height:1;cursor:pointer;display:grid;place-items:center}
+  .sl-exp:hover{background:var(--paper)}
+  /* one voyage, opened from the grid */
+  .sl-detail{border:1px solid var(--rule);border-radius:3px;background:var(--paper);overflow:hidden}
+  .sl-dbar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--rule-2);flex-wrap:wrap}
+  .sl-back{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:7px 12px;border-radius:99px;border:0;
+    background:var(--ink);color:var(--paper);cursor:pointer}
+  .sl-dtitle{font-family:var(--disp);font-weight:800;font-size:22px;line-height:1}
+  .sl-dtitle small{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--ink-2);margin-left:8px;letter-spacing:.04em}
+  .sl-dnav{margin-left:auto;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+  .sl-dnav button{width:32px;height:32px;border-radius:50%;border:1px solid var(--rule);background:var(--paper);color:var(--ink);font-size:18px;cursor:pointer}
+  .sl-dnav button:disabled{opacity:.3;cursor:default}
+  .sl-dbody{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}
+  .sl-dmap{height:440px;background:var(--rule-2)}
+  .sl-dwrap{position:relative}
+  .sl-collapse{width:32px;height:32px;font-size:16px;top:10px;right:10px}
+  .sl-dinfo{padding:14px 16px;font-size:12.5px;border-left:1px solid var(--rule-2)}
+  .sl-dinfo .row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--rule-2);font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+  .sl-dinfo .row b{font-family:var(--body);font-weight:600;color:var(--ink);font-size:12.5px;text-align:right}
+  .sl-dinfo p{margin:10px 0 0;line-height:1.5;color:var(--ink-2)}
+  .sl-dinfo .sl-condrow{margin-top:10px}
+  @media (max-width:760px){
+    .sl-dbody{grid-template-columns:1fr}
+    .sl-dmap{height:300px}
+    .sl-dinfo{border-left:0;border-top:1px solid var(--rule-2)}
+    .sl-dtitle{font-size:19px}
+  }
+  .sl-notrack{position:absolute;left:0;right:0;top:0;height:150px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:500}
+  .sl-notrack span{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);
+    background:color-mix(in srgb,var(--paper) 80%,transparent);padding:3px 8px;border-radius:3px}
+  .sl-rseg{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--rule);border-radius:3px;background:var(--rule-2);margin-right:4px}
+  .sl-rseg button{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border:0;border-radius:2px;background:transparent;color:var(--muted);cursor:pointer}
+  .sl-rseg button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 0 0 1px var(--rule)}
+  .sl-legrp .spgrad{display:inline-block;width:110px;height:5px;border-radius:2px}
   .sl-mini .c{padding:8px 10px 10px;font-size:12px}
   .sl-mini .c .r1{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .sl-mini .c b{font-weight:600}
@@ -293,6 +341,7 @@
         <span id="sl-pos" aria-live="polite"></span>
         <button type="button" id="sl-next" aria-label="Older sail">&#8250;</button>
       </div>
+      <div class="sl-detail" id="sl-detail" hidden></div>
       <div class="sl-grid" id="sl-grid"></div>
       <div class="sl-condkey" id="sl-condkey"></div></div>
     <div class="sl-pane" id="pane-heat" hidden><div class="sl-map" id="map-heat"></div>
@@ -485,10 +534,14 @@
   function harbourAt(name){ var h=harbours().filter(function(x){ return x.name===name; })[0]; return h?[h.lat,h.lon]:null; }
   function inScope(t,sc){ return !sc||sc==="all"||homeOf(t)===sc; }
   var WSCOPE="all";                                  // which waters the Where maps frame
+  function zoomLess(sc){ return sc==="Berkeley Marina"?1:0; }   // Berkeley's one track sits better with a step more water around it
+  // frame the stored bounds, a step further out where asked - worked out from the bounds, never from the
+  // current zoom, so re-framing a map any number of times always lands in the same place
+  function refit(m){ m.setView(m._fit.getCenter(), m.getBoundsZoom(m._fit)-(m._less||0), {animate:false}); }
   function allBounds(sc){ var b=L.latLngBounds([]); D.trips.forEach(function(t){ if(t.poly&&inScope(t,sc===undefined?WSCOPE:sc)) decode(t.poly).forEach(function(p){b.extend(p);}); }); return b; }
   function baseMap(id,opts){
-    var m=L.map(id,Object.assign({zoomSnap:1,attributionControl:true,scrollWheelZoom:false},opts||{}));
-    tiles().addTo(m); labels(m); var b=allBounds(); m._fit=b.pad(0.08); m.fitBounds(m._fit); m.setMaxBounds(b.pad(0.9)); return m;
+    var m=L.map(id,Object.assign({zoomSnap:1,attributionControl:false,scrollWheelZoom:false},opts||{}));
+    tiles().addTo(m); labels(m); var b=allBounds(); m._fit=b.pad(0.08); m._less=zoomLess(WSCOPE); refit(m); m.setMaxBounds(b.pad(1.8)); return m;
   }
 
   /* Douglas-Peucker in metres. Points are one a minute, so tied-up time at the
@@ -536,12 +589,12 @@
   function addMarks(m,size,opts){
     opts=opts||{}; var tipOn=!opts.quiet;
     if(!opts.noHarbour) harbours().forEach(function(hb){
-      if(opts.only && homeOf(opts.only)!==hb.name) return;
+      if(opts.only ? homeOf(opts.only)!==hb.name : (WSCOPE!=="all" && WSCOPE!==hb.name)) return;
       var n=D.trips.filter(function(t){ return t.poly&&homeOf(t)===hb.name; }).length;
       var h=L.marker([hb.lat,hb.lon],{icon:markIcon("harbour",size),interactive:tipOn,keyboard:false}).addTo(m);
       if(tipOn) h.on("mousemove",function(e){ showTip("<b>Home port</b><br>"+hb.name+" · "+n+" tracked sail"+(n===1?"":"s"),e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
     });
-    D.trips.forEach(function(t){ if(!t.anchor || (opts.only && opts.only!==t)) return;
+    D.trips.forEach(function(t){ if(!t.anchor || (opts.only && opts.only!==t) || (!opts.only && !inScope(t,WSCOPE))) return;
       var a=L.marker([t.anchor.lat,t.anchor.lon],{icon:markIcon("anchor",size),interactive:tipOn,keyboard:false}).addTo(m);
       if(tipOn) a.on("mousemove",function(e){ showTip("<b>Anchored</b> · "+fdate(t.date)+"<br>about "+t.anchor.min+" min, anchoring practice",e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
     });
@@ -552,22 +605,26 @@
     // a quieter chart underneath, so the routes carry the colour
     m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
     var lines=[];
+    // all routes share one pane drawn at 30%: inside it the age fade still applies, but overlaps can't build
+    // up past 30%. Hovering a route lifts the cap so the one you point at reads clearly
+    var rp=m.createPane("routes"); rp.style.zIndex=410; rp.style.opacity=.3; var rr=L.svg({pane:"routes"});
     /* fade by age: the newest sail at full strength, each older one lighter,
        reaching 10% at the sixth-newest and staying there. Oldest drawn first,
        so the recent routes always sit on top. */
-    var tracked=D.trips.filter(function(t){return t.poly;}).sort(function(a,b){return a.date<b.date?-1:1;});
+    var tracked=D.trips.filter(function(t){return t.poly && inScope(t,WSCOPE);}).sort(function(a,b){return a.date<b.date?-1:1;});
     function ageOp(t){ var rank=tracked.length-1-tracked.indexOf(t); return 1-0.9*Math.min(rank,5)/5; }
     tracked.forEach(function(t){
       var pts=smooth(decode(t.poly)), op=ageOp(t);
-      var halo=L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.85*op,interactive:false,lineJoin:"round"}).addTo(m);
-      var ln=L.polyline(pts,{color:m2(t.role),weight:1.8,opacity:op,lineJoin:"round"}).addTo(m);
+      var halo=L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.85*op,interactive:false,lineJoin:"round",renderer:rr}).addTo(m);
+      var ln=L.polyline(pts,{color:m2(t.role),weight:1.8,opacity:op,lineJoin:"round",interactive:false,renderer:rr}).addTo(m);
       ln._op=op;
       var hit=L.polyline(pts,{color:"#000",weight:14,opacity:0}).addTo(m);
       lines.push({t:t,ln:ln,halo:halo});
       hit.on("mousemove",function(e){
+        rp.style.opacity=1;
         lines.forEach(function(o){ var on=o.t===t; o.ln.setStyle({opacity:on?1:.08,weight:on?3:1.8}); o.halo.setStyle({opacity:on?.95:.06}); });
         halo.bringToFront(); ln.bringToFront(); showTip(tripTip(t), e.originalEvent.clientX, e.originalEvent.clientY); });
-      hit.on("mouseout",function(){ lines.forEach(function(o){ o.ln.setStyle({opacity:o.ln._op,weight:1.8}); o.halo.setStyle({opacity:.85*o.ln._op}); }); hideTip(); });
+      hit.on("mouseout",function(){ rp.style.opacity=.3; lines.forEach(function(o){ o.ln.setStyle({opacity:o.ln._op,weight:1.8}); o.halo.setStyle({opacity:.85*o.ln._op}); }); hideTip(); });
     });
     addMarks(m,22);
   }
@@ -608,10 +665,169 @@
     '</div>';
   }
 
+  /* route colour on the voyage thumbnails: by role, or by boat speed. Points are one a minute,
+     so the distance between neighbours is the speed over that minute. */
+  var RCOL="role";
+  /* a continuous colour for speed: the ramp's six steps sit at 1.5…6.5 kn and colours in between are mixed,
+     so neighbouring minutes blend instead of jumping from band to band */
+  var SPEED_LO=1.5, SPEED_HI=7;
+  function hexRgb(h){ h=h.replace("#",""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+  function speedColour(kn){
+    var stops=[1,2,3,4,5,6].map(function(i){ return hexRgb(cssv("--sp"+i)); }), n=stops.length-1;
+    var t=Math.max(0,Math.min(1,(kn-SPEED_LO)/(SPEED_HI-SPEED_LO)))*n, i=Math.min(n-1,Math.floor(t)), f=t-i, a=stops[i], b=stops[i+1];
+    return "rgb("+[0,1,2].map(function(k){ return Math.round(a[k]+(b[k]-a[k])*f); }).join(",")+")";
+  }
+  function speedTrack(pts){                        // the same smooth route as the role view, each point carrying a speed
+    var KX=111320*Math.cos(37.85*Math.PI/180), kn=[0], i, j;
+    for(i=1;i<pts.length;i++) kn.push(Math.hypot((pts[i][0]-pts[i-1][0])*110540,(pts[i][1]-pts[i-1][1])*KX)/60/0.514444);
+    kn[0]=kn[1]||0;
+    // a rolling 7-minute average, so the colour follows the sailing rather than GPS jitter
+    var sm=kn.map(function(_,k){ var a=Math.max(0,k-3), z=Math.min(kn.length-1,k+3), t=0; for(j=a;j<=z;j++) t+=kn[j]; return t/(z-a+1); });
+    var g=chaikin(simplify(pts,45),3), last=0;
+    var v=g.map(function(p){                         // speed of the nearest recorded minute, searching forward along the track
+      var best=1e18, bi=last;
+      for(var k=Math.max(0,last-5);k<pts.length;k++){ var d=Math.pow(pts[k][0]-p[0],2)+Math.pow((pts[k][1]-p[1])*.79,2); if(d<best){ best=d; bi=k; } if(k>last+40 && best<1e-7) break; }
+      last=bi; return bi; });
+    var vs=v.map(function(_,k){ var a=Math.max(0,k-4), z=Math.min(v.length-1,k+4), t=0; for(j=a;j<=z;j++) t+=sm[v[j]]; return t/(z-a+1); });
+    return g.map(function(p,k){ return [p[0],p[1],vs[k],v[k]]; });          // lat, lon, kn, minute of the sail
+  }
+  /* the speed line: the colour is painted as wide, overlapping strokes, then cut out by one continuous
+     smooth path used as a mask, so the edge is a single clean curve while the colour blends along it */
+  var SpeedLine=L.Layer.extend({
+    initialize:function(q,id,w,col){ this._q=q; this._id=id; this._w=w||2.4; this._col=col||function(a,b){ return speedColour(Math.round((a+b)*5)/10); }; },
+    onAdd:function(map){ this._map=map; this._el=L.DomUtil.create("div","",map.getPane("overlayPane"));
+      this._el.style.position="absolute"; this._el.style.pointerEvents="none"; map.on("zoomend viewreset moveend",this._draw,this); this._draw(); },
+    onRemove:function(map){ L.DomUtil.remove(this._el); map.off("zoomend viewreset moveend",this._draw,this); },
+    _draw:function(){
+      var m=this._map, P=this._q.map(function(p){ return m.latLngToLayerPoint([p[0],p[1]]); }), pad=8;
+      var x0=Math.min.apply(null,P.map(function(p){return p.x;}))-pad, y0=Math.min.apply(null,P.map(function(p){return p.y;}))-pad,
+          x1=Math.max.apply(null,P.map(function(p){return p.x;}))+pad, y1=Math.max.apply(null,P.map(function(p){return p.y;}))+pad;
+      var pts=P.map(function(p){ return (p.x-x0).toFixed(2)+","+(p.y-y0).toFixed(2); }), q=this._q, id=this._id;
+      var o='<svg width="'+(x1-x0).toFixed(0)+'" height="'+(y1-y0).toFixed(0)+'" style="overflow:visible;display:block">'+
+        '<polyline points="'+pts.join(" ")+'" fill="none" stroke="'+cssv("--halo")+'" stroke-opacity=".9" stroke-width="'+(this._w+2)+'" stroke-linejoin="round" stroke-linecap="round"/>';
+      // drawn in sailing order, each stretch in its own colour, so where the track crosses itself the later pass sits on top
+      // with its own colour; consecutive segments of the same colour share one polyline for clean joins
+      var run=[pts[0]], c=null;
+      for(var i=1;i<pts.length;i++){ var ci=this._col(q[i-1][2],q[i][2]);
+        if(c!==null && ci!==c){ o+=seg(run,c,this._w); run=[pts[i-1]]; }
+        c=ci; run.push(pts[i]); }
+      if(run.length>1) o+=seg(run,c,this._w);
+      function seg(r,col,w){ return '<polyline points="'+r.join(" ")+'" fill="none" stroke="'+col+'" stroke-width="'+w+'" stroke-linejoin="round" stroke-linecap="round"/>'; }
+      this._el.innerHTML=o+'</svg>';
+      L.DomUtil.setPosition(this._el,L.point(x0,y0));
+    }
+  });
+  /* one voyage at a time: the grid steps aside for a big map and the details; "All voyages" (or Esc) goes back */
+  var SEL=null;
+  function sailNumbers(){ var no={}; D.trips.filter(function(t){ return t.date; }).forEach(function(t,i){ no[t.key]=i+1; }); return no; }
+  function closeVoyage(){
+    var key=SEL; SEL=null; if(maps.detail){ maps.detail.remove(); delete maps.detail; }
+    var d=document.getElementById("sl-detail"), g=document.getElementById("sl-grid");
+    d.hidden=true; d.innerHTML=""; g.hidden=false; document.getElementById("sl-pager").style.visibility="";
+    for(var k in maps){ if(k.indexOf("mini-")===0){ maps[k].invalidateSize(); refit(maps[k]); } }
+    var card=key&&g.querySelector('.sl-mini[data-k="'+key+'"]');        // back where you were: the card you opened
+    if(card){ if(getComputedStyle(g).display==="flex") g.scrollLeft=card.offsetLeft-g.offsetLeft; card.scrollIntoView({block:"nearest"}); }
+  }
+  function openVoyage(key,list){
+    var i=list.map(function(t){ return t.key; }).indexOf(key);
+    if(i<0){ SEL=null; var dd_=document.getElementById("sl-detail"); dd_.hidden=true; dd_.innerHTML="";       // e.g. filtered out by the harbour switch
+      document.getElementById("sl-grid").hidden=false; document.getElementById("sl-pager").style.visibility=""; return; }
+    SEL=key; var t=list[i], no=sailNumbers(), d=document.getElementById("sl-detail"), g=document.getElementById("sl-grid");
+    if(maps.detail){ maps.detail.remove(); delete maps.detail; }
+    var rows=[["Role",RNAME[t.role]],["Boat",boatName(t)],["Home port",homeOf(t)],
+      ["Time",(t.start?t.start+(t.end?'–'+t.end:'')+' · ':'')+fh(t.hours)],["Distance",t.nm!=null?t.nm.toFixed(1)+' nm':'—'],
+      ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · jib '+(t.jib===1?'full':Math.round(t.jib*100)+'%'):''):''],
+      ["After sunset",t.afterSunset?Math.round(t.afterSunset)+' min':'']].filter(function(r){ return r[1]; });
+    d.innerHTML='<div class="sl-dbar"><button type="button" class="sl-back" id="sl-back">&larr; All voyages</button>'+
+      '<div class="sl-dtitle">Sail '+(no[t.key]||'')+'<small>'+fdate(t.date)+(t.club?' · '+t.club:'')+'</small></div>'+
+      '<div class="sl-dnav"><button type="button" id="sl-dprev" aria-label="Newer sail"'+(i<=0?' disabled':'')+'>&#8249;</button>'+
+      '<span>'+(i+1)+' / '+list.length+'</span><button type="button" id="sl-dnext" aria-label="Older sail"'+(i>=list.length-1?' disabled':'')+'>&#8250;</button></div></div>'+
+      '<div class="sl-dbody"><div class="sl-dwrap"><div class="sl-dmap" id="map-detail"></div>'+
+        '<button type="button" class="sl-exp sl-collapse" id="sl-collapse" aria-label="Back to all voyages" title="Back to all voyages">&#10529;</button></div><div class="sl-dinfo">'+
+        (t.wind?'<div style="margin-bottom:6px">'+bfChip(t.wind,true)+'</div>':'')+
+        rows.map(function(r){ return '<div class="row"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join("")+condRow(t)+
+        (t.note?'<p>'+t.note+'</p>':'')+'</div></div>';
+    g.hidden=true; d.hidden=false; document.getElementById("sl-pager").style.visibility="hidden";
+    document.getElementById("sl-back").onclick=closeVoyage; document.getElementById("sl-collapse").onclick=closeVoyage;
+    document.getElementById("sl-dprev").onclick=function(){ openVoyage(list[i-1].key,list); };
+    document.getElementById("sl-dnext").onclick=function(){ openVoyage(list[i+1].key,list); };
+    // the big map frames this voyage itself, not the whole harbour
+    var m=L.map("map-detail",{zoomSnap:.25,scrollWheelZoom:false,attributionControl:false});
+    tiles().addTo(m); labels(m);
+    var b=t.poly?L.latLngBounds(decode(t.poly)):allBounds(homeOf(t)); m._fit=b.pad(t.poly?.12:.07); m._less=t.poly?0:zoomLess(homeOf(t)); refit(m);
+    m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
+    if(t.poly){ var raw=decode(t.poly), pts=smooth(raw);
+      var cl=colourLine(raw,t,"spd-detail",3.4);
+      if(cl) cl.addTo(m);
+      else { L.polyline(pts,{color:cssv("--halo"),weight:6,opacity:.9,interactive:false,lineJoin:"round"}).addTo(m);
+             L.polyline(pts,{color:mc(t.role),weight:3,opacity:1,interactive:false,lineJoin:"round"}).addTo(m); } }
+    addMarks(m,20,{only:t});
+    maps.detail=m;
+    d.scrollIntoView({block:"nearest"});
+  }
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape" && SEL) closeVoyage(); });
+  /* point of sail: the angle between where the boat is heading and where the wind comes from (the
+     sail's median wind along the track). Headings are averaged over a few points so tacks don't flicker. */
+  var POS=[{hi:50,label:"close-hauled"},{hi:80,label:"close reach"},{hi:110,label:"beam reach"},{hi:150,label:"broad reach"},{hi:181,label:"run"}];
+  function posTrack(raw,t){
+    var q=speedTrack(raw), w0=(t.wind&&t.wind.deg!=null)?t.wind.deg:(t.avg&&t.avg.wind?t.avg.wind.deg:null), K=Math.cos(37.85*Math.PI/180);
+    if(w0==null) return null;
+    // wind at a minute of the sail: the 5-minute series along the track, blended as vectors between samples;
+    // in near calm the model's direction means little, so the sail's overall wind stands in
+    var ws=t.ws||[];
+    function windAt(mn){
+      if(!ws.length) return w0;
+      var i=0; while(i<ws.length-1 && ws[i+1][0]<=mn) i++;
+      var a=ws[i], b=ws[Math.min(i+1,ws.length-1)], f=b[0]>a[0]?Math.max(0,Math.min(1,(mn-a[0])/(b[0]-a[0]))):0;
+      if(a[2]*(1-f)+b[2]*f<2) return w0;
+      var r=Math.PI/180, x=a[2]*(1-f)*Math.sin(a[1]*r)+b[2]*f*Math.sin(b[1]*r), y=a[2]*(1-f)*Math.cos(a[1]*r)+b[2]*f*Math.cos(b[1]*r);
+      return (Math.atan2(x,y)/r+360)%360; }
+    var hv=q.map(function(_,k){ var a=q[Math.max(0,k-1)], b=q[Math.min(q.length-1,k+1)]; return [(b[1]-a[1])*K,(b[0]-a[0])]; });
+    return q.map(function(p,k){
+      var sx=0, sy=0; for(var j=Math.max(0,k-4);j<=Math.min(q.length-1,k+4);j++){ sx+=hv[j][0]; sy+=hv[j][1]; }
+      var w=windAt(p[3]), hd=(Math.atan2(sx,sy)*180/Math.PI+360)%360, rel=((hd-w)%360+540)%360-180, twa=Math.abs(rel), c=0;
+      if(p[2]<1) return [p[0],p[1],-1];                // docking or drifting: not sailing
+      while(twa>=POS[c].hi) c++;
+      // heading clockwise of the wind puts the wind over the port side: port tack (+10)
+      return [p[0],p[1],c+(rel>0?10:0)];
+    });
+  }
+  /* the legend for point of sail: the classic wheel - wind from the top, a boat in the middle, and the
+     sectors around it in the route colours, mirrored for port and starboard tacks */
+  function posWheel(){
+    var cx=106, cy=34, r0=15, r1=23, o='<svg width="200" height="66" viewBox="0 0 200 66" style="display:block;overflow:visible" aria-label="Points of sail by tack">';
+    function pt(a,r){ var t=(a-90)*Math.PI/180; return [cx+Math.cos(t)*r, cy+Math.sin(t)*r]; }
+    function sector(a0,a1,col){ var A=pt(a0,r1),B=pt(a1,r1),C=pt(a1,r0),E=pt(a0,r0);
+      return '<path d="M'+A[0].toFixed(1)+','+A[1].toFixed(1)+' A'+r1+','+r1+' 0 0 1 '+B[0].toFixed(1)+','+B[1].toFixed(1)+
+        ' L'+C[0].toFixed(1)+','+C[1].toFixed(1)+' A'+r0+','+r0+' 0 0 0 '+E[0].toFixed(1)+','+E[1].toFixed(1)+' Z" fill="'+col+'" stroke="'+cssv("--paper")+'" stroke-width=".8"/>'; }
+    var lo=0;
+    POS.forEach(function(c,i){ var hi=Math.min(180,c.hi);
+      o+=sector(lo,hi,cssv("--port"+(i+1)))+sector(360-hi,360-lo,cssv("--stbd"+(i+1)));
+      var m=pt((lo+hi)/2,r1+4);
+      o+='<text x="'+(m[0]+2).toFixed(1)+'" y="'+(m[1]+3).toFixed(1)+'" font-family="IBM Plex Mono,monospace" font-size="8" fill="'+cssv("--ink-2")+'">'+c.label+'</text>';
+      lo=hi; });
+    o+='<path d="M'+cx+','+(cy-7)+' C'+(cx+3.2)+','+(cy-2.5)+' '+(cx+3.2)+','+(cy+4)+' '+(cx+2.2)+','+(cy+6.5)+' L'+(cx-2.2)+','+(cy+6.5)+' C'+(cx-3.2)+','+(cy+4)+' '+(cx-3.2)+','+(cy-2.5)+' '+cx+','+(cy-7)+' Z" fill="'+cssv("--ink")+'"/>';
+    o+='<line x1="'+cx+'" y1="0" x2="'+cx+'" y2="'+(cy-r1-3)+'" stroke="'+cssv("--ink")+'" stroke-width="1.2"/>'+
+       '<path d="M'+(cx-3)+','+(cy-r1-7)+' L'+cx+','+(cy-r1-2)+' L'+(cx+3)+','+(cy-r1-7)+'" fill="none" stroke="'+cssv("--ink")+'" stroke-width="1.2"/>'+
+       '<text x="'+(cx-6)+'" y="6" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="8" fill="'+cssv("--ink-2")+'">wind</text>'+
+       '<text x="0" y="'+(cy+22)+'" font-family="IBM Plex Mono,monospace" font-size="8" fill="'+cssv("--muted")+'">(estimated)</text>';
+    // which half is which tack, stacked on the empty side of the wheel
+    [["--stbd3","starboard tack",-5],["--port3","port tack",8]].forEach(function(k){
+      o+='<rect x="0" y="'+(cy+k[2]-4)+'" width="9" height="4" rx="1" fill="'+cssv(k[0])+'"/><text x="12" y="'+(cy+k[2])+'" font-family="IBM Plex Mono,monospace" font-size="8" fill="'+cssv("--ink-2")+'">'+k[1]+'</text>'; });
+    return o+'</svg>';
+  }
+  function posColour(a){ return a<0 ? cssv("--rule") : cssv((a>=10?"--port":"--stbd")+(a%10+1)); }
+  /* the coloured route for the current mode, or null to draw it by role */
+  function colourLine(raw,t,id,w){
+    if(RCOL==="speed") return new SpeedLine(speedTrack(raw),id,w);
+    if(RCOL==="pos"){ var q=posTrack(raw,t); if(q) return new SpeedLine(q,id,w,function(a){ return posColour(a); }); }
+    return null;
+  }
   function buildTrips(){
-    var g=document.getElementById("sl-grid"), list=D.trips.filter(function(t){return t.date && (t.poly||(t.cond && !t.approx));}).slice().reverse();
+    var g=document.getElementById("sl-grid"), list=D.trips.filter(function(t){return t.date && inScope(t,WSCOPE) && (t.poly||(t.cond && !t.approx));}).slice().reverse();
     g.innerHTML=list.map(function(t){
-      return '<div class="sl-mini">'+(t.poly?'<div class="m" id="mini-'+t.key+'"></div>':'<div class="sl-nomap">no track recorded</div>')+
+      return '<div class="sl-mini" data-k="'+t.key+'"><div class="m" id="mini-'+t.key+'"></div>'+(t.poly?'':'<div class="sl-notrack"><span>no track recorded</span></div>')+
+        '<button type="button" class="sl-exp" data-k="'+t.key+'" aria-label="Open this voyage" title="Open this voyage">&#10530;</button>'+
         '<div class="c"><div class="r1"><div><b>'+fdate(t.date)+'</b> · '+RNAME[t.role]+'</div>'+(t.wind?bfChip(t.wind,false):'')+'</div>'+
         '<span>'+(t.boat||t.type||'Boat to confirm')+' · '+fh(t.hours)+' · '+t.nm.toFixed(1)+' nm</span>'+condRow(t)+'</div></div>';
     }).join("");
@@ -621,8 +837,20 @@
         '<span>'+glyphBox(barb(270,15))+'wind: median, with its 10–90% range below</span>'+
         '<span>'+glyphBox(currentArrow({phase:"flood",kn:2,toward:90}))+'current (longer = faster)</span>'+
         '<span>'+bfLadder(4)+'Beaufort force, windiest 10%</span></div>'+
-      '<div class="sl-legrp nowrap"><span class="lab">Route</span>'+
-        ROLES.map(function(r){ return '<span><i class="sw" style="background:'+rc(r)+'"></i>'+RNAME[r].toLowerCase()+'</span>'; }).join("")+'</div>';
+      '<div class="sl-legrp'+(RCOL==="role"?' nowrap':'')+'"><span class="lab">Route</span>'+
+        '<span class="sl-rseg" role="group" aria-label="Route colour"><button type="button" data-rcol="role" aria-pressed="'+(RCOL==="role")+'">Role</button>'+
+        '<button type="button" data-rcol="speed" aria-pressed="'+(RCOL==="speed")+'">Speed</button>'+
+        '<button type="button" data-rcol="pos" aria-pressed="'+(RCOL==="pos")+'">Point of sail</button></span>'+
+        (RCOL==="pos"
+          ? '<span>'+posWheel()+'</span>'
+          : RCOL==="speed"
+          ? '<span>'+SPEED_LO+'</span><span><i class="spgrad" style="background:linear-gradient(90deg,'+[1,2,3,4,5,6].map(function(i){ return cssv("--sp"+i); }).join(",")+')"></i></span><span>'+SPEED_HI+'+ kn</span>'
+          : ROLES.map(function(r){ return '<span><i class="sw" style="background:'+rc(r)+'"></i>'+RNAME[r].toLowerCase()+'</span>'; }).join(""))+'</div>';
+    Array.prototype.forEach.call(document.querySelectorAll("[data-rcol]"),function(b){ b.onclick=function(){
+      RCOL=b.getAttribute("data-rcol"); for(var k in maps){ if(k.indexOf("mini-")===0){ maps[k].remove(); delete maps[k]; } } buildTrips(); }; });
+    Array.prototype.forEach.call(g.querySelectorAll(".sl-exp, .sl-mini .m"),function(el){ el.onclick=function(e){ e.stopPropagation();
+      openVoyage(el.getAttribute("data-k")||el.parentNode.getAttribute("data-k"),list); }; });
+    if(SEL) openVoyage(SEL,list);
     var cards=g.children, prev=document.getElementById("sl-prev"), next=document.getElementById("sl-next"), pos=document.getElementById("sl-pos");
     function step(){ return cards.length ? cards[0].offsetWidth+12 : 0; }
     function current(){ return Math.max(0, Math.min(list.length-1, Math.round(g.scrollLeft/(step()||1)))); }
@@ -638,16 +866,20 @@
     next.onclick=function(){ goTo(current()+1); };
     var st=null; g.onscroll=function(){ clearTimeout(st); st=setTimeout(update,60); };
     update();
-    list.forEach(function(t){ if(!t.poly) return;
+    list.forEach(function(t){
       var b=allBounds(homeOf(t));
       // thumbnails from the same home port share one extent, so they're comparable at a glance
       var m=L.map("mini-"+t.key,{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,
         doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,zoomSnap:0.1});
-      tiles().addTo(m); m._fit=b.pad(0.07); m.fitBounds(m._fit);
+      tiles().addTo(m); m._fit=b.pad(0.07); m._less=zoomLess(homeOf(t)); refit(m);
       m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
-      var pts=smooth(decode(t.poly));
-      L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.9,interactive:false,lineJoin:"round"}).addTo(m);
-      L.polyline(pts,{color:mc(t.role),weight:2,opacity:1,interactive:false,lineJoin:"round"}).addTo(m);
+      if(t.poly){
+        var raw=decode(t.poly), pts=smooth(raw);
+        // the halo goes on the same layer as the route, so it sits underneath it
+        var cl=colourLine(raw,t,"spd-"+t.key);
+        if(cl) cl.addTo(m); else L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.9,interactive:false,lineJoin:"round"}).addTo(m);
+        if(!cl) L.polyline(pts,{color:mc(t.role),weight:2,opacity:1,interactive:false,lineJoin:"round"}).addTo(m);
+      }
       addMarks(m,15,{quiet:true,only:t});
       maps["mini-"+t.key]=m;
     });
@@ -657,7 +889,7 @@
     var m=baseMap("map-heat"); maps.heat=m;
     var lat0=37.85, lon0=-122.46, kx=111320*Math.cos(lat0*Math.PI/180), ky=110540, S=170;   // hex radius, metres
     var bins={};
-    D.trips.forEach(function(t){ if(!t.poly) return; decode(t.poly).forEach(function(p){
+    D.trips.forEach(function(t){ if(!t.poly || !inScope(t,WSCOPE)) return; decode(t.poly).forEach(function(p){
       var x=(p[1]-lon0)*kx, y=(p[0]-lat0)*ky;
       var q=(Math.sqrt(3)/3*x-y/3)/S, r=(2/3*y)/S, cx=q, cz=r, cy=-cx-cz;
       var rx=Math.round(cx), ry=Math.round(cy), rz=Math.round(cz);
@@ -677,7 +909,7 @@
         .on("mouseout",hideTip).addTo(m);
     })(k); }
     // hours per named area, labelled at the area's centre
-    var tot={}; D.trips.forEach(function(t){ for(var a in (t.areas||{})) tot[a]=(tot[a]||0)+t.areas[a]; });
+    var tot={}; D.trips.forEach(function(t){ if(!inScope(t,WSCOPE)) return; for(var a in (t.areas||{})) tot[a]=(tot[a]||0)+t.areas[a]; });
     var SIDE={"Richardson Bay":"below","Raccoon Strait":"right","East of Tiburon":"right","Central Bay":"right","Golden Gate":"left"};
     D.areas.forEach(function(a){ if(!tot[a.name]) return;
       L.marker([a.lat,a.lon],{interactive:false,icon:L.divIcon({className:"",iconSize:null,
@@ -699,11 +931,11 @@
     ["all","trips","heat"].forEach(function(x){ document.getElementById("pane-"+x).hidden = x!==v; });
     Array.prototype.forEach.call(document.querySelectorAll(".sl-tab[data-v]"),function(b){ b.setAttribute("aria-selected", b.getAttribute("data-v")===v?"true":"false"); });
     if(!built[v]){ built[v]=1; ({all:buildAll,trips:buildTrips,heat:buildHeat})[v](); }
-    for(var k in maps){ maps[k].invalidateSize(); if(maps[k]._fit) maps[k].fitBounds(maps[k]._fit); }
+    for(var k in maps){ maps[k].invalidateSize(); if(maps[k]._fit) refit(maps[k]); }
   }
   var rz=null;
   window.addEventListener("resize",function(){ clearTimeout(rz); rz=setTimeout(function(){ if(D) drawCal();
-    for(var k in maps){ maps[k].invalidateSize(); if(maps[k]._fit) maps[k].fitBounds(maps[k]._fit); } },150); });
+    for(var k in maps){ maps[k].invalidateSize(); if(maps[k]._fit) refit(maps[k]); } },150); });
   function resetMaps(){ for(var k in maps){ maps[k].remove(); } maps={}; built={}; showView(VIEW); }
 
   /* ---------- records ---------- */
@@ -728,12 +960,15 @@
           '</div></div>';
     }).join("");
     document.getElementById("sl-foot").innerHTML=
-      'Tracks recorded on a Garmin and synced through Strava. Wind is the hourly model value from '+
+      'Wind is the model value from '+
       '<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> for each sail\'s time and place; '+
+      'for the point-of-sail colours it is taken every 5 minutes where the boat was, its direction corrected toward '+
+      'what nearby NOAA stations measured. '+
       'tidal currents are <a href="https://tidesandcurrents.noaa.gov/" target="_blank" rel="noopener">NOAA</a> predictions at the nearest station, '+
       'interpolated between slack and maximum. Both are modelled, and '+
       'the Bay\'s local winds often run stronger than the model says. Header shoreline &copy; '+
-      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors. Built '+D.generated+'.';
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors. '+
+      'Map tiles &copy; Esri, GEBCO, NOAA, National Geographic, DeLorme, HERE, Garmin, Geonames.org and OpenStreetMap contributors.';
   }
 
   /* every route, no basemap, drawn like a pencil sketch on the chart table.
