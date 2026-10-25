@@ -740,20 +740,21 @@
      Animated: routes are drawn in one at a time in date order; older ones dim
      step by step, and the oldest beyond the four on show fades to nothing
      before it's drawn again. Static for anyone who prefers reduced motion. */
-  var artTimer=null, ART_KEEP=4, ART_STEP=3200, ART_NARROW=matchMedia("(max-width:760px)"), ART_SCOPE="all", ART_ZOOM=.72;   // <1 pulls the sketch back from the routes
+  var artTimer=null, ART_KEEP=4, ART_STEP=3200, ART_NARROW=matchMedia("(max-width:760px)"), ART_SCOPE="all", ART_ZOOM=.72, SHOW_ROSE=false;   // <1 pulls the sketch back from the routes
   try{ ART_NARROW.addEventListener("change",function(){ if(D) drawArt(); }); }catch(e){}
   /* the Golden Gate Bridge seen from above, in a muted international orange. One soft, blurred
      shadow under it, offset towards the evening shadow side, makes it hover above the water;
      the roads fade out at both ends */
   function ggBridge(P){
-    var GG=[[37.8079,-122.4753],[37.8106,-122.4773],[37.8136,-122.4778],[37.8249,-122.4795],[37.8280,-122.4800],[37.8318,-122.4808]];
+    // the approach roads run further onto land at both ends (Presidio, Waldo Grade) before fading out
+    var GG=[[37.8030,-122.4718],[37.8079,-122.4753],[37.8106,-122.4773],[37.8136,-122.4778],[37.8249,-122.4795],[37.8280,-122.4800],[37.8318,-122.4808],[37.8368,-122.4822]];
     var xy=GG.map(function(p){ return P(p).split(",").map(Number); }), col="#e0592a", f=function(n){ return n.toFixed(2); };
-    var A=xy[0], Z=xy[5], L=Math.hypot(Z[0]-A[0],Z[1]-A[1])||1, dx=(Z[0]-A[0])/L, dy=(Z[1]-A[1])/L, nx=-dy, ny=dx;
+    var A=xy[0], Z=xy[xy.length-1], L=Math.hypot(Z[0]-A[0],Z[1]-A[1])||1, dx=(Z[0]-A[0])/L, dy=(Z[1]-A[1])/L, nx=-dy, ny=dx;
     function at(q){ return Math.hypot(q[0]-A[0],q[1]-A[1])/L; }
     function pts(a){ return a.map(function(q){ return f(q[0])+","+f(q[1]); }).join(" "); }
     function bar(b,w,t,fill){ return '<polygon points="'+pts([[b[0]-nx*w-dx*t,b[1]-ny*w-dy*t],[b[0]+nx*w-dx*t,b[1]+ny*w-dy*t],
       [b[0]+nx*w+dx*t,b[1]+ny*w+dy*t],[b[0]-nx*w+dx*t,b[1]-ny*w+dy*t]])+'" fill="'+fill+'" stroke="none"/>'; }
-    var fS=at(xy[1]), fN=at(xy[4]), towers=[xy[2],xy[3]];
+    var fS=at(xy[2]), fN=at(xy[5]), towers=[xy[3],xy[4]];
     var o='<defs><linearGradient id="ggFade" gradientUnits="userSpaceOnUse" x1="'+f(A[0])+'" y1="'+f(A[1])+'" x2="'+f(Z[0])+'" y2="'+f(Z[1])+'">'+
       [[0,0],[fS*.5,.25],[fS,1],[fN,1],[fN+(1-fN)*.5,.25],[1,0]].map(function(st){
         return '<stop offset="'+st[0].toFixed(3)+'" stop-color="#fff" stop-opacity="'+st[1]+'"/>'; }).join("")+'</linearGradient>'+
@@ -766,21 +767,57 @@
        towers.map(function(b){ return bar(b,3,.9,col)+bar(b,1.2,.5,"#f09a74"); }).join("")+'</g>';
     return o+'</g>';
   }
+  /* the Bay Bridge in the same style, in its own silver-grey: the west span's twin suspension bridges
+     (four towers and the centre anchorage) from San Francisco to Yerba Buena Island, a gap for the
+     tunnel, then the east span's single tower and the long skyway towards Oakland. Each span fades
+     out where it runs into the land. */
+  function bayBridge(P,landD){
+    var col="#b4bdc6", hi="#d3dae0", f=function(n){ return n.toFixed(2); };
+    var WEST=[[37.7884,-122.3901],[37.7905,-122.3874],[37.7934,-122.3839],[37.7967,-122.3801],[37.7988,-122.3776],
+              [37.8018,-122.3740],[37.8050,-122.3702],[37.8085,-122.3660],[37.8105,-122.3630]],
+        EAST=[[37.8105,-122.3630],[37.8122,-122.3590],[37.8146,-122.3553],[37.8163,-122.3514],[37.8190,-122.3400],[37.8210,-122.3260],
+              [37.8240,-122.3100],[37.8255,-122.2990]];
+    function pts(a){ return a.map(function(q){ return f(q[0])+","+f(q[1]); }).join(" "); }
+    function span(id,LL,fade,towers,blocks){
+      var xy=LL.map(function(p){ return P(p).split(",").map(Number); }), A=xy[0], Z=xy[xy.length-1];
+      function bar(i,w,t,fill,dxs,dys){ var a=xy[Math.max(0,i-1)], b=xy[Math.min(xy.length-1,i+1)], c=xy[i],
+          L=Math.hypot(b[0]-a[0],b[1]-a[1])||1, dx=(b[0]-a[0])/L, dy=(b[1]-a[1])/L, nx=-dy, ny=dx, x=c[0]+(dxs||0), y=c[1]+(dys||0);
+        return '<polygon points="'+pts([[x-nx*w-dx*t,y-ny*w-dy*t],[x+nx*w-dx*t,y+ny*w-dy*t],[x+nx*w+dx*t,y+ny*w+dy*t],[x-nx*w+dx*t,y-ny*w+dy*t]])+'" fill="'+fill+'" stroke="none"/>'; }
+      var o='<defs><linearGradient id="'+id+'F" gradientUnits="userSpaceOnUse" x1="'+f(A[0])+'" y1="'+f(A[1])+'" x2="'+f(Z[0])+'" y2="'+f(Z[1])+'">'+
+        fade.map(function(st){ return '<stop offset="'+st[0]+'" stop-color="#fff" stop-opacity="'+st[1]+'"/>'; }).join("")+'</linearGradient>'+
+        '<mask id="'+id+'M" maskUnits="userSpaceOnUse" x="0" y="0" width="440" height="220"><rect width="440" height="220" fill="url(#'+id+'F)"/></mask></defs>';
+      o+='<g mask="url(#'+id+'M)" stroke-linecap="round" stroke-linejoin="round" fill="none">';
+      o+='<g filter="url(#ggBlur)" opacity=".45"><polyline points="'+pts(xy.map(function(q){ return [q[0]+3,q[1]+1.4]; }))+'" stroke="#000" stroke-width="2.6"/>'+
+         towers.map(function(i){ return bar(i,2.6,1.2,"#000",4,1.8); }).join("")+'</g>';
+      o+='<g opacity=".55"><polyline points="'+pts(xy)+'" stroke="'+col+'" stroke-width="1.9"/>'+
+         blocks.map(function(i){ return bar(i,2.2,1.6,col); }).join("")+
+         towers.map(function(i){ return bar(i,2.5,.8,col)+bar(i,1,.45,hi); }).join("")+'</g>';
+      return o+'</g>';
+    }
+    /* the deck vanishes wherever it crosses land (San Francisco, Yerba Buena Island, Oakland) and comes
+       back over the water: a mask of the water, with the land cut out and its edge softened a little */
+    var o='';
+    if(landD) o+='<defs><filter id="bbSoft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.1"/></filter>'+
+      '<mask id="bbWater" maskUnits="userSpaceOnUse" x="0" y="0" width="440" height="220"><rect width="440" height="220" fill="#fff"/>'+
+      '<path d="'+landD+'" fill="#000" filter="url(#bbSoft)"/></mask></defs><g mask="url(#bbWater)">';
+    o+=span("bbW",WEST,[[0,1],[1,1]],[2,3,5,6],[4])+span("bbE",EAST,[[0,1],[.7,1],[1,0]],[2],[]);
+    return o+(landD?'</g>':'');
+  }
   /* a faint, simplified chart compass rose: a degree ring, a star at true north, and an
      inner ring whose arrow points to magnetic north (about 13°E on SF Bay) */
   /* a faint NOAA-style compass rose for the header */
   function rf(n){ return n.toFixed(2); }
-  function roseLetters(cx,cy,d,fg){ return '<g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central" opacity=".12" font-size="7.5">'+
+  function roseLetters(cx,cy,d,fg){ return '<g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central" opacity=".152" font-size="7.5">'+
       [["N",0,-1],["E",1,0],["S",0,1],["W",-1,0]].map(function(c){ return '<text x="'+rf(cx+c[1]*d)+'" y="'+rf(cy+c[2]*d)+'">'+c[0]+'</text>'; }).join("")+'</g>'; }
   // degree ring with bearings, a star at true north, and the magnetic ring inside turned 13° east (SF Bay)
   function roseChart(cx,cy,R,fg){
-    var o='<g fill="none" stroke="'+fg+'" opacity=".1">', i, a, Ri=R-12;
+    var o='<g fill="none" stroke="'+fg+'" opacity=".127">', i, a, Ri=R-12;
     function tick(deg,r0,r1,w){ var a=deg*Math.PI/180; return '<line x1="'+rf(cx+Math.sin(a)*r0)+'" y1="'+rf(cy-Math.cos(a)*r0)+'" x2="'+rf(cx+Math.sin(a)*r1)+'" y2="'+rf(cy-Math.cos(a)*r1)+'" stroke-width="'+w+'"/>'; }
     o+='<circle cx="'+rf(cx)+'" cy="'+rf(cy)+'" r="'+R+'" stroke-width=".7"/><circle cx="'+rf(cx)+'" cy="'+rf(cy)+'" r="'+Ri+'" stroke-width=".5"/>';
     for(i=0;i<360;i+=5) o+=tick(i,R-(i%90===0?5:(i%30===0?3.5:1.8)),R,.45);
     for(i=0;i<360;i+=10) o+=tick(i+13,Ri-(i%90===0?4:1.8),Ri,.4);
     o+=tick(13,-(Ri-5),Ri-5,.45)+tick(103,-(Ri-5),Ri-5,.45);
-    o+='</g><g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central" opacity=".12">';
+    o+='</g><g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central" opacity=".152">';
     for(i=30;i<360;i+=30){ a=i*Math.PI/180; o+='<text font-size="4.6" transform="translate('+rf(cx+Math.sin(a)*(R-8))+','+rf(cy-Math.cos(a)*(R-8))+') rotate('+i+')">'+i+'</text>'; }
     o+='<text x="'+rf(cx)+'" y="'+rf(cy-R+7)+'" font-size="6">★</text></g>';
     return o+roseLetters(cx,cy,R+7,fg); }
@@ -890,12 +927,13 @@
     });
     // the compass rose sits out in the open water between Angel Island and the Berkeley flats, like a rose on a chart
     var rq=P([37.856,-122.366]).split(",").map(Number);
-    s+=roseChart(rq[0]-W*.05,rq[1]-H*.05,42,fg)+'</g>';            // the rose dissolves with the shore
+    if(SHOW_ROSE) s+=roseChart(rq[0]-W*.02,rq[1]-H*.08,42.7,fg);   // switched off for now; flip SHOW_ROSE to bring it back
+    s+='</g>';            // the rose dissolves with the shore
     T.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t,i,arr){
       var op=(0.22+0.5*(i/Math.max(1,arr.length-1))).toFixed(2);           // older lines quieter (static version)
       s+='<polyline points="'+t._art.map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+op+'"/>';
     });
-    s+=ggBridge(P);                                                  // the bridge sits above the routes
+    s+=ggBridge(P)+bayBridge(P,typeof landD==="string"?landD:"");    // the bridges sit above the routes
     harbours().forEach(function(hb){ if(!T.some(function(t){ return homeOf(t)===hb.name; })) return;
       var q=P([hb.lat,hb.lon]).split(","); s+='<circle cx="'+q[0]+'" cy="'+q[1]+'" r="3" fill="'+fg+'"/>'; });
     el.innerHTML=s+'</svg>';
