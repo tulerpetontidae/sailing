@@ -188,5 +188,19 @@
   "reef": 0,
   "jib": 1.0,
   "note": "Occasional fog, mist and rain, with visibility below a mile (maybe a little less) at times. The most stunning ten-minute sunset when the fog suddenly cleared on the horizon. Practiced navigation after sunset, in the dark (as dark as the Bay gets)."
+ },
+ {
+  "key": "2026-10-24",
+  "strava": 20718328949,
+  "boat": "Nirvana",
+  "type": "J/105",
+  "ft": 35,
+  "role": "student",
+  "club": "Asymmetric spinnaker practice",
+  "home": "Berkeley Marina",
+  "harbour": true,
+  "aboard": 7,
+  "aboardNote": "6 + instructor",
+  "note": "Asymmetric spinnaker handling, rotating through every position: bow, mast, pit, spinnaker trimmer, main trimmer and driver. Practised hoists (port side), inside gybes and windward douses, and got more familiar with the cunningham and adjusting backstay tension."
  }
 ]

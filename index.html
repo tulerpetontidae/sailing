@@ -59,6 +59,14 @@
   .sl-art{position:absolute;right:20px;top:14px;bottom:14px;width:46%;max-width:440px;pointer-events:none;margin:0;display:flex;flex-direction:column}
   .sl-artbox{flex:1;min-height:0}
   .sl-art svg{width:100%;height:100%;display:block}
+  .sl-scope{display:inline-flex;gap:2px;margin-right:10px;pointer-events:auto;vertical-align:1px}
+  .sl-scope button{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:99px;
+    border:1px solid color-mix(in srgb,var(--hero-fg) 25%,transparent);background:transparent;color:inherit;cursor:pointer}
+  .sl-scope button[aria-pressed="true"]{background:color-mix(in srgb,var(--hero-fg) 85%,transparent);color:var(--hero-bg);border-color:transparent}
+  .sl-wscope{display:inline-flex;gap:4px;margin-left:auto;align-items:center}
+  .sl-wscope button{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border:1px solid var(--rule);
+    border-radius:3px;background:var(--rule-2);color:var(--muted);cursor:pointer}
+  .sl-wscope button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 0 0 1px var(--rule)}
   .sl-art figcaption{font-size:11px;line-height:1.45;color:color-mix(in srgb,var(--hero-fg) 55%,transparent);text-align:right;margin-top:4px}
   @media (max-width:760px){
     .sl-art{position:static;width:100%;max-width:none;margin:14px 0 6px}
@@ -275,6 +283,7 @@
       <button class="sl-tab" role="tab" data-v="all" aria-selected="true">A · All routes</button>
       <button class="sl-tab" role="tab" data-v="trips" aria-selected="false">B · Voyage by voyage</button>
       <button class="sl-tab" role="tab" data-v="heat" aria-selected="false">C · Time on the water</button>
+      <span class="sl-wscope" id="sl-wscope" role="group" aria-label="Which waters"></span>
     </div>
     <div class="sl-pane" id="pane-all"><div class="sl-map" id="map-all"></div>
       <div style="margin-top:10px" id="sl-rolekey"></div></div>
@@ -470,7 +479,13 @@
       : L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
           {maxZoom:16,attribution:'Tiles &copy; Esri &mdash; GEBCO, NOAA, National Geographic, DeLorme, HERE, Geonames.org, and others'});
   }
-  function allBounds(){ var b=L.latLngBounds([]); D.trips.forEach(function(t){ if(t.poly) decode(t.poly).forEach(function(p){b.extend(p);}); }); return b; }
+  /* home ports: Sausalito by default, a trip can name another ("home") */
+  function homeOf(t){ return t.home||"Sausalito"; }
+  function harbours(){ return D.harbours&&D.harbours.length ? D.harbours : (D.harbour?[D.harbour]:[]); }
+  function harbourAt(name){ var h=harbours().filter(function(x){ return x.name===name; })[0]; return h?[h.lat,h.lon]:null; }
+  function inScope(t,sc){ return !sc||sc==="all"||homeOf(t)===sc; }
+  var WSCOPE="all";                                  // which waters the Where maps frame
+  function allBounds(sc){ var b=L.latLngBounds([]); D.trips.forEach(function(t){ if(t.poly&&inScope(t,sc===undefined?WSCOPE:sc)) decode(t.poly).forEach(function(p){b.extend(p);}); }); return b; }
   function baseMap(id,opts){
     var m=L.map(id,Object.assign({zoomSnap:1,attributionControl:true,scrollWheelZoom:false},opts||{}));
     tiles().addTo(m); labels(m); var b=allBounds(); m._fit=b.pad(0.08); m.fitBounds(m._fit); m.setMaxBounds(b.pad(0.9)); return m;
@@ -520,10 +535,12 @@
   }
   function addMarks(m,size,opts){
     opts=opts||{}; var tipOn=!opts.quiet;
-    if(D.harbour && !opts.noHarbour){
-      var h=L.marker([D.harbour.lat,D.harbour.lon],{icon:markIcon("harbour",size),interactive:tipOn,keyboard:false}).addTo(m);
-      if(tipOn) h.on("mousemove",function(e){ showTip("<b>Home port</b><br>"+D.harbour.name+", where every sail starts and ends",e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
-    }
+    if(!opts.noHarbour) harbours().forEach(function(hb){
+      if(opts.only && homeOf(opts.only)!==hb.name) return;
+      var n=D.trips.filter(function(t){ return t.poly&&homeOf(t)===hb.name; }).length;
+      var h=L.marker([hb.lat,hb.lon],{icon:markIcon("harbour",size),interactive:tipOn,keyboard:false}).addTo(m);
+      if(tipOn) h.on("mousemove",function(e){ showTip("<b>Home port</b><br>"+hb.name+" · "+n+" tracked sail"+(n===1?"":"s"),e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
+    });
     D.trips.forEach(function(t){ if(!t.anchor || (opts.only && opts.only!==t)) return;
       var a=L.marker([t.anchor.lat,t.anchor.lon],{icon:markIcon("anchor",size),interactive:tipOn,keyboard:false}).addTo(m);
       if(tipOn) a.on("mousemove",function(e){ showTip("<b>Anchored</b> · "+fdate(t.date)+"<br>about "+t.anchor.min+" min, anchoring practice",e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
@@ -621,9 +638,9 @@
     next.onclick=function(){ goTo(current()+1); };
     var st=null; g.onscroll=function(){ clearTimeout(st); st=setTimeout(update,60); };
     update();
-    var b=allBounds();
     list.forEach(function(t){ if(!t.poly) return;
-      // every thumbnail shares one extent, so they're comparable at a glance
+      var b=allBounds(homeOf(t));
+      // thumbnails from the same home port share one extent, so they're comparable at a glance
       var m=L.map("mini-"+t.key,{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,
         doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,zoomSnap:0.1});
       tiles().addTo(m); m._fit=b.pad(0.07); m.fitBounds(m._fit);
@@ -705,7 +722,7 @@
           (t.title?'<p>'+t.type+'</p>':'')+
           ((t.club||t.aboard)?'<p>'+[t.club,(t.aboard?t.aboard+' aboard'+(t.aboardNote?' ('+t.aboardNote+')':''):'')].filter(Boolean).join(' · ')+(area?' · '+area:'')+'</p>':(area?'<p>'+area+'</p>':''))+
           (t.note?'<p>'+t.note+'</p>':'')+'</div>'+
-        '<div class="h"><small>Home port</small>'+(t.home||(D.harbour&&D.harbour.name)||"Sausalito")+'</div>'+
+        '<div class="h"><small>Home port</small>'+homeOf(t)+'</div>'+
         '<div class="n">'+(t.hours?(t.approx?'≈ ':'')+fh(t.hours)+'<small>'+(t.nm!=null?t.nm.toFixed(1)+' nm':'no track')+'</small>':'no track')+
           (t.wind?'<small style="margin-top:6px">'+bfChip(t.wind,true)+'</small><small>'+(t.wind.med!=null?t.wind.med+' kn '+t.wind.from+' · '+t.wind.p10+'–'+t.wind.p90:(t.wind.avg+' kn '+t.wind.from))+' · gusts '+t.wind.gust+'</small>':'')+
           '</div></div>';
@@ -723,7 +740,7 @@
      Animated: routes are drawn in one at a time in date order; older ones dim
      step by step, and the oldest beyond the four on show fades to nothing
      before it's drawn again. Static for anyone who prefers reduced motion. */
-  var artTimer=null, ART_KEEP=4, ART_STEP=3200, ART_NARROW=matchMedia("(max-width:760px)");
+  var artTimer=null, ART_KEEP=4, ART_STEP=3200, ART_NARROW=matchMedia("(max-width:760px)"), ART_SCOPE="all", ART_ZOOM=.72;   // <1 pulls the sketch back from the routes
   try{ ART_NARROW.addEventListener("change",function(){ if(D) drawArt(); }); }catch(e){}
   /* the Golden Gate Bridge seen from above, in a muted international orange. One soft, blurred
      shadow under it, offset towards the evening shadow side, makes it hover above the water;
@@ -751,30 +768,25 @@
   }
   /* a faint, simplified chart compass rose: a degree ring, a star at true north, and an
      inner ring whose arrow points to magnetic north (about 13°E on SF Bay) */
-  function compassRose(cx,cy,R,fg){
-    var VAR=13, Ri=R-12, o='<g class="rose" fill="none" stroke="'+fg+'" opacity=".2">', i, a;
-    function f(n){ return n.toFixed(2); }
-    function tick(deg,r0,r1,w){ var a=deg*Math.PI/180;
-      return '<line x1="'+f(cx+Math.sin(a)*r0)+'" y1="'+f(cy-Math.cos(a)*r0)+'" x2="'+f(cx+Math.sin(a)*r1)+'" y2="'+f(cy-Math.cos(a)*r1)+'" stroke-width="'+w+'"/>'; }
-    o+='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" stroke-width=".95"/>';
-    for(i=0;i<360;i+=10) o+=tick(i,R-(i%90===0?6:(i%30===0?4.2:2.4)),R,.75);
-    o+='<circle cx="'+cx+'" cy="'+cy+'" r="'+Ri+'" stroke-width=".75"/>';
-    a=VAR*Math.PI/180; var tx=cx+Math.sin(a)*(Ri-1), ty=cy-Math.cos(a)*(Ri-1),
-      bx=cx+Math.sin(a)*(Ri-9.5), by=cy-Math.cos(a)*(Ri-9.5), px=Math.cos(a)*2.7, py=Math.sin(a)*2.7;
-    o+=tick(VAR,-(Ri-9.5),Ri-9.5,.65);
-    o+='<path d="M'+f(tx)+','+f(ty)+' L'+f(bx-px)+','+f(by-py)+' L'+f(bx)+','+f(by)+' Z" fill="'+fg+'" stroke-width=".5"/>';
-    o+='<path d="M'+f(tx)+','+f(ty)+' L'+f(bx+px)+','+f(by+py)+' L'+f(bx)+','+f(by)+' Z" stroke-width=".5"/>';
-    var st='', sr=4, sy=cy-R+10;
-    for(i=0;i<10;i++){ var r=i%2?sr*.42:sr, an=i*Math.PI/5; st+=(i?'L':'M')+f(cx+Math.sin(an)*r)+','+f(sy-Math.cos(an)*r); }
-    o+='<path d="'+st+'Z" fill="'+fg+'" stroke="none"/></g>';
-    o+='<g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central">';
-    [["N",0,-1],["E",1,0],["S",0,1],["W",-1,0]].forEach(function(c){
-      o+='<text font-size="7.5" opacity=".24" x="'+f(cx+c[1]*(R+6))+'" y="'+f(cy+c[2]*(R+6))+'">'+c[0]+'</text>'; });
-    return o+'</g>';
-  }
+  /* a faint NOAA-style compass rose for the header */
+  function rf(n){ return n.toFixed(2); }
+  function roseLetters(cx,cy,d,fg){ return '<g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central" opacity=".12" font-size="7.5">'+
+      [["N",0,-1],["E",1,0],["S",0,1],["W",-1,0]].map(function(c){ return '<text x="'+rf(cx+c[1]*d)+'" y="'+rf(cy+c[2]*d)+'">'+c[0]+'</text>'; }).join("")+'</g>'; }
+  // degree ring with bearings, a star at true north, and the magnetic ring inside turned 13° east (SF Bay)
+  function roseChart(cx,cy,R,fg){
+    var o='<g fill="none" stroke="'+fg+'" opacity=".1">', i, a, Ri=R-12;
+    function tick(deg,r0,r1,w){ var a=deg*Math.PI/180; return '<line x1="'+rf(cx+Math.sin(a)*r0)+'" y1="'+rf(cy-Math.cos(a)*r0)+'" x2="'+rf(cx+Math.sin(a)*r1)+'" y2="'+rf(cy-Math.cos(a)*r1)+'" stroke-width="'+w+'"/>'; }
+    o+='<circle cx="'+rf(cx)+'" cy="'+rf(cy)+'" r="'+R+'" stroke-width=".7"/><circle cx="'+rf(cx)+'" cy="'+rf(cy)+'" r="'+Ri+'" stroke-width=".5"/>';
+    for(i=0;i<360;i+=5) o+=tick(i,R-(i%90===0?5:(i%30===0?3.5:1.8)),R,.45);
+    for(i=0;i<360;i+=10) o+=tick(i+13,Ri-(i%90===0?4:1.8),Ri,.4);
+    o+=tick(13,-(Ri-5),Ri-5,.45)+tick(103,-(Ri-5),Ri-5,.45);
+    o+='</g><g font-family="IBM Plex Mono,monospace" fill="'+fg+'" text-anchor="middle" dominant-baseline="central" opacity=".12">';
+    for(i=30;i<360;i+=30){ a=i*Math.PI/180; o+='<text font-size="4.6" transform="translate('+rf(cx+Math.sin(a)*(R-8))+','+rf(cy-Math.cos(a)*(R-8))+') rotate('+i+')">'+i+'</text>'; }
+    o+='<text x="'+rf(cx)+'" y="'+rf(cy-R+7)+'" font-size="6">★</text></g>';
+    return o+roseLetters(cx,cy,R+7,fg); }
   function drawArt(){
     clearInterval(artTimer);
-    var el=document.getElementById("sl-art"), T=D.trips.filter(function(t){return t.poly;});
+    var el=document.getElementById("sl-art"), T=D.trips.filter(function(t){return t.poly && inScope(t,ART_SCOPE);});
     if(!T.length){ el.innerHTML=""; return; }
     var k=Math.cos(37.85*Math.PI/180), all=[];
     // a sketch, not a record: every route starts and ends at the harbour (the watch was often
@@ -784,11 +796,11 @@
        ends at the harbour carries a genuine path into it. For a track that starts out in
        the Bay, find the closest point on any of those homecoming paths and follow that
        path from the dock back out to it, so the invented stretch never cuts the shore. */
-    var H0=D.harbour?[D.harbour.lat,D.harbour.lon]:null, KX=111320*Math.cos(37.85*Math.PI/180);
+    var KX=111320*Math.cos(37.85*Math.PI/180);
     function dm(a,b){ return Math.hypot((a[0]-b[0])*110540,(a[1]-b[1])*KX); }
     /* a track recorded right from the dock can run a little past the harbour point (further into the
        marina) at either end: cut it at its closest approach and pin that end to the harbour itself */
-    function trimHome(p){
+    function trimHome(p,H0){
       if(!H0||p.length<4) return p;
       var n=p.length, i, d, bi=-1, bd=1e9;
       for(i=0;i<Math.ceil(n*.25);i++){ d=dm(p[i],H0); if(d<bd){ bd=d; bi=i; } }
@@ -797,19 +809,20 @@
       for(i=Math.floor(m*.75);i<m;i++){ d=dm(q[i],H0); if(d<bd){ bd=d; bi=i; } }
       return bd<150 ? q.slice(0,bi).concat([H0]) : q;
     }
-    T.forEach(function(t){ t._pts=trimHome(decode(t.poly)); });
-    var homeward=T.map(function(t){ return {t:t, p:t._pts}; }).filter(function(h){ return H0 && dm(h.p[h.p.length-1],H0)<150; });
+    T.forEach(function(t){ t._H=harbourAt(homeOf(t)); t._pts=trimHome(decode(t.poly),t._H); });
+    var homeward=T.map(function(t){ return {t:t, p:t._pts, H:t._H}; }).filter(function(h){ return h.H && dm(h.p[h.p.length-1],h.H)<150; });
     function legs(t,pts){
+      var H0=t._H;
       if(!H0) return {out:[],body:pts,back:[]};
       var out=[], back=[];
-      if(dm(pts[0],H0)>150) out=best_path(t,pts[0]);
-      if(dm(pts[pts.length-1],H0)>150) back=best_path(t,pts[pts.length-1]).slice().reverse();
+      if(dm(pts[0],H0)>150) out=best_path(t,pts[0],H0);
+      if(dm(pts[pts.length-1],H0)>150) back=best_path(t,pts[pts.length-1],H0).slice().reverse();
       return {out:out, body:pts, back:back};
     }
-    function best_path(self,target){
+    function best_path(self,target,H0){
       var best=null;
-      // other sails only, and only their last 40% - the run home, not the sail itself
-      homeward.forEach(function(h){ if(h.t===self) return; var p=h.p;
+      // other sails home to the same port only, and only their last 40% - the run home, not the sail itself
+      homeward.forEach(function(h){ if(h.t===self||h.H!==H0) return; var p=h.p;
         for(var i=Math.floor(p.length*0.6);i<p.length;i++){ var d=dm(p[i],target); if(!best||d<best.d) best={d:d,p:p,i:i}; } });
       if(!best) return [H0];
       // the homecoming path from its closest point to the dock, reversed: dock first
@@ -845,9 +858,9 @@
     T.forEach(function(t){ var L=legs(t,t._pts); t._legs=L; t._art=artLine(t,t._pts); all=all.concat(t._art); });
     var x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
     all.forEach(function(p){ var x=p[1]*k, y=-p[0]; x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); });
-    var W=440,H=220,pad=8, sc=Math.min((W-2*pad)/(x1-x0),(H-2*pad)/(y1-y0));
+    var W=440,H=220,pad=8, sc1=Math.min((W-2*pad)/(x1-x0),(H-2*pad)/(y1-y0)), sc=sc1*ART_ZOOM;
     // beside the headline the sketch hugs the right edge; once it drops below the title it is centred
-    var narrow=ART_NARROW.matches, oxR=W-pad-(x1-x0)*sc, ox=narrow?(W-(x1-x0)*sc)/2:oxR, oy=(H-(y1-y0)*sc)/2;
+    var narrow=ART_NARROW.matches, oxR=W-pad-(x1-x0)*(sc1+sc)/2, ox=narrow?(W-(x1-x0)*sc)/2:oxR, oy=(H-(y1-y0)*sc)/2;
     function P(p){ return ((p[1]*k-x0)*sc+ox).toFixed(1)+","+((-p[0]-y0)*sc+oy).toFixed(1); }
     var fg=cssv("--hero-fg"), s='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="'+(narrow?'xMidYMid':'xMaxYMid')+' meet">';
     // the shore underneath: a thick, faint line, so the routes still lead. It fades
@@ -862,24 +875,29 @@
     // shore, like the shallows on a chart. The land's west edge is where the coastline data stops,
     // so the land fades in from there and the cut never shows.
     if(D.land){
-      var landD=D.land.map(function(r){ return "M"+chaikin(r,1).map(P).join(" L")+"Z"; }).join(" "), cutX=+P([37.85,-122.62]).split(",")[0];
+      var landD=D.land.map(function(r){ return "M"+chaikin(r,1).map(P).join(" L")+"Z"; }).join(" "), cutX=+P([37.85,-122.64]).split(",")[0], cutE=+P([37.85,-122.25]).split(",")[0];
       s+='<defs><filter id="slShallow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur in="SourceAlpha" stdDeviation="4.5" result="b"/>'+
          '<feComposite in="b" in2="SourceAlpha" operator="out" result="o"/><feFlood flood-color="#7fb2df" flood-opacity=".25"/><feComposite in2="o" operator="in"/></filter>'+
-         '<linearGradient id="slLandIn" gradientUnits="userSpaceOnUse" x1="'+cutX.toFixed(1)+'" x2="'+(cutX+160).toFixed(1)+'" y1="0" y2="0">'+
-         '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient>'+
+         // land fades in from the west edge of the coastline data and out again before its east edge
+         '<linearGradient id="slLandIn" gradientUnits="userSpaceOnUse" x1="'+cutX.toFixed(1)+'" x2="'+cutE.toFixed(1)+'" y1="0" y2="0">'+
+         '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="'+Math.min(.45,160/(cutE-cutX)).toFixed(3)+'" stop-color="#fff" stop-opacity="1"/>'+
+         '<stop offset="'+Math.max(.55,1-60/(cutE-cutX)).toFixed(3)+'" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'+
          '<mask id="slLandM" maskUnits="userSpaceOnUse" x="0" y="0" width="'+W+'" height="'+H+'"><rect width="'+W+'" height="'+H+'" fill="url(#slLandIn)"/></mask></defs>'+
          '<g mask="url(#slLandM)"><g filter="url(#slShallow)"><path d="'+landD+'" fill="#fff"/></g></g>';
     }
     (D.coast||[]).forEach(function(c){
       s+='<polyline class="coast" points="'+chaikin(c,2).map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width=".7" stroke-linejoin="round" stroke-linecap="round" opacity=".2"/>';
     });
-    s+=compassRose(166+(ox-oxR),55,41.4,fg)+'</g>';            // the rose dissolves with the shore
+    // the compass rose sits out in the open water between Angel Island and the Berkeley flats, like a rose on a chart
+    var rq=P([37.856,-122.366]).split(",").map(Number);
+    s+=roseChart(rq[0]-W*.05,rq[1]-H*.05,42,fg)+'</g>';            // the rose dissolves with the shore
     T.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t,i,arr){
       var op=(0.22+0.5*(i/Math.max(1,arr.length-1))).toFixed(2);           // older lines quieter (static version)
       s+='<polyline points="'+t._art.map(P).join(" ")+'" fill="none" stroke="'+fg+'" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+op+'"/>';
     });
     s+=ggBridge(P);                                                  // the bridge sits above the routes
-    if(D.harbour) s+='<circle cx="'+P([D.harbour.lat,D.harbour.lon]).split(",")[0]+'" cy="'+P([D.harbour.lat,D.harbour.lon]).split(",")[1]+'" r="3" fill="'+fg+'"/>';
+    harbours().forEach(function(hb){ if(!T.some(function(t){ return homeOf(t)===hb.name; })) return;
+      var q=P([hb.lat,hb.lon]).split(","); s+='<circle cx="'+q[0]+'" cy="'+q[1]+'" r="3" fill="'+fg+'"/>'; });
     el.innerHTML=s+'</svg>';
 
     var reduce=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -963,7 +981,18 @@
     document.getElementById("sl-cgrid").innerHTML=p1+p2+p3+p4;
   }
 
-  function drawAll(){ drawHead(); drawArt(); drawRoles(); drawCal(); drawConditions(); drawRecs(); drawBfGuide(); }
+  /* the two waters switches: the header sketch, and the Where maps */
+  function scopeButtons(host,cur,onPick,labels){
+    var ports=harbours().filter(function(hb){ return D.trips.some(function(t){ return t.poly&&homeOf(t)===hb.name; }); });
+    if(ports.length<2){ host.innerHTML=""; return; }
+    var opts=[["all",labels.all]].concat(ports.map(function(hb){ return [hb.name, labels.short?hb.name.split(" ")[0]:hb.name]; }));
+    host.innerHTML=opts.map(function(o){ return '<button type="button" data-sc="'+o[0]+'" aria-pressed="'+(o[0]===cur)+'">'+o[1]+'</button>'; }).join("");
+    Array.prototype.forEach.call(host.querySelectorAll("button"),function(b){ b.onclick=function(){ onPick(b.getAttribute("data-sc")); }; });
+  }
+  function drawScopes(){
+    scopeButtons(document.getElementById("sl-wscope"),WSCOPE,function(v){ WSCOPE=v; drawScopes(); resetMaps(); },{all:"Whole bay"});
+  }
+  function drawAll(){ drawHead(); drawScopes(); drawArt(); drawRoles(); drawCal(); drawConditions(); drawRecs(); drawBfGuide(); }
 
   /* ---------- theme ---------- */
   var sysDark=window.matchMedia?matchMedia("(prefers-color-scheme:dark)"):null;

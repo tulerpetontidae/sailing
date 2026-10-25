@@ -21,6 +21,7 @@ AREAS = [
     ("East of Tiburon", 37.890, -122.440),
     ("Central Bay",    37.832, -122.437),
     ("Golden Gate",    37.818, -122.478),
+    ("Berkeley flats", 37.866, -122.340),
 ]
 
 def decode(poly):
@@ -58,6 +59,8 @@ CURRENTS = [
     ("PCT0561", 1, "Point Blunt, 0.5 nmi SW",    37.8455, -122.4230),
     ("PCT0606", 1, "Raccoon Strait, off Pt Stuart", 37.8612, -122.4520),
     ("PCT0621", 1, "Bluff Point, 0.1 mi E",      37.8833, -122.4350),
+    ("PCT0596", 1, "Fleming Point, 1.7 nmi SW",  37.8770, -122.3588),     # Berkeley flats
+    ("PCT0346", 1, "Treasure Island, 0.5 mi N",  37.8405, -122.3683),
 ]
 
 COMPASS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]
@@ -155,7 +158,7 @@ def metres(a, b):
     k = math.cos(math.radians(37.85))
     return math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * k)
 
-LAND_FRAME = (37.76, 37.95, -122.62, -122.34)        # S, N, W, E: inside the area the coastline was fetched for
+LAND_FRAME = (37.73, 37.96, -122.64, -122.25)        # S, N, W, E: inside the area the coastline was fetched for
 
 def land_polygons(lines, frame=LAND_FRAME):
     """Close OSM coastline lines into land polygons. OSM draws coastline with the land on its
@@ -294,12 +297,15 @@ def main():
     trips = json.load(open("trips.json"))
     cache = json.load(open("conditions.json")) if os.path.exists("conditions.json") else {}
     out = []
-    # the harbour: where the flagged sail's track comes back to the dock
-    harbour = None
+    # home ports: where a flagged sail's track comes back to the dock, one per port.
+    # Sausalito is the default; a trip names another port with "home".
+    harbours = {}
     for t in trips:
         if t.get("harbour") and t.get("strava"):
             hp = decode(json.load(open("tracks/%d.json" % t["strava"]))["poly"])[-1]
-            harbour = {"name": "Sausalito", "lat": round(hp[0], 5), "lon": round(hp[1], 5)}
+            nm_ = t.get("home", "Sausalito")
+            harbours.setdefault(nm_, {"name": nm_, "lat": round(hp[0], 5), "lon": round(hp[1], 5)})
+    harbour = harbours.get("Sausalito")
     for t in trips:
         r = dict(t)
         if t.get("strava"):
@@ -360,7 +366,8 @@ def main():
     out.sort(key=lambda r: (r.get("date") is None, r.get("date") or "", r["key"]))
     json.dump(cache, open("conditions.json", "w"), indent=1)
     data = {"generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "areas": [{"name": a[0], "lat": a[1], "lon": a[2]} for a in AREAS], "harbour": harbour, "trips": out}
+            "areas": [{"name": a[0], "lat": a[1], "lon": a[2]} for a in AREAS], "harbour": harbour,
+            "harbours": list(harbours.values()), "trips": out}
     # a rough shoreline for the header sketch (OpenStreetMap coastline, pre-simplified),
     # and the same coast closed into land areas so the header can tint the shallows
     if os.path.exists("coast.json"):
