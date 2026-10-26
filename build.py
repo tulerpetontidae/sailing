@@ -21,6 +21,7 @@ AREAS = [
     ("East of Tiburon", 37.890, -122.440),
     ("Central Bay",    37.832, -122.437),
     ("Golden Gate",    37.818, -122.478),
+    ("East of Angel Island", 37.862, -122.398),
     ("Berkeley flats", 37.866, -122.340),
 ]
 

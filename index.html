@@ -228,6 +228,8 @@
   .sl-play button{height:28px;min-width:28px;border-radius:14px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer;font-family:var(--mono);font-size:11px;padding:0 8px}
   .sl-play input[type=range]{flex:1 1 160px;accent-color:var(--ink);min-width:120px}
   .sl-play .sl-pline{flex:1 1 100%;display:flex;align-items:center;gap:8px;min-height:28px}
+  #sl-pread{display:flex;flex-wrap:wrap;column-gap:1ch;font-variant-numeric:tabular-nums}
+  #sl-pread span{white-space:pre}
   #sl-psun svg{display:block}
   .sl-pkey{display:inline-flex;align-items:center;gap:5px;color:var(--ink-2)}
   .sl-pkey svg{margin-left:6px}
@@ -240,7 +242,11 @@
   .sl-dinfo .row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--rule-2);font-family:var(--mono);font-size:11px;color:var(--ink-2)}
   .sl-dinfo .row b{font-family:var(--body);font-weight:600;color:var(--ink);font-size:12.5px;text-align:right}
   .sl-dinfo p{margin:10px 0 0;line-height:1.5;color:var(--ink-2)}
-  .sl-dinfo .sl-condrow{margin-top:10px}
+  .sl-davg{margin-top:12px}
+  .sl-davg .lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .sl-dinfo .sl-davg .sl-condrow{margin-top:4px;padding-top:0;border-top:0}
+  .sl-dnote{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}
+  .sl-dinfo .sl-dnote p{margin:0}
   @media (max-width:760px){
     .sl-dbody{grid-template-columns:1fr}
     .sl-dmap{height:300px}
@@ -792,8 +798,9 @@
           '<span class="sl-pline"><span id="sl-psun"></span><span id="sl-pread"></span></span></div>':'')+
         '</div><div class="sl-dinfo">'+
         (t.wind?'<div style="margin-bottom:6px">'+bfChip(t.wind,true)+'</div>':'')+
-        rows.map(function(r){ return '<div class="row"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join("")+condRow(t)+
-        (t.note?'<p>'+t.note+'</p>':'')+'</div></div>';
+        rows.map(function(r){ return '<div class="row"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join("")+
+        '<div class="sl-davg"><span class="lab">Averaged over the sail</span>'+condRow(t)+'</div>'+
+        (t.note?'<div class="sl-dnote"><p>'+t.note+'</p></div>':'')+'</div></div>';
     g.hidden=true; d.hidden=false; document.getElementById("sl-pager").style.visibility="hidden";
     document.getElementById("sl-back").onclick=closeVoyage; document.getElementById("sl-collapse").onclick=closeVoyage;
     document.getElementById("sl-dprev").onclick=function(){ openVoyage(list[i-1].key,list); };
@@ -1003,31 +1010,34 @@
     if(field) field.addTo(m);
     [].forEach.call(wrap.querySelectorAll(".sl-ltog"),function(b){ b.onclick=function(){
       var l=b.getAttribute("data-l"); SHOW[l]=!SHOW[l]; b.setAttribute("aria-pressed",SHOW[l]); if(field) field.draw(tau); }; });
-    var boat=L.marker([Q[0].lat,Q[0].lon],{icon:icon,interactive:false,keyboard:false,zIndexOffset:1000}).addTo(m);
+    var boat=L.marker([Q[0].lat,Q[0].lon],{icon:icon,interactive:false,keyboard:false,zIndexOffset:-1000}).addTo(m);   // under the harbour mark
     var tau=0, qi=0, playing=false, last=0, raf=0;
     function lerpAng(a,b,f){ var d=((b-a)%360+540)%360-180; return (a+d*f+360)%360; }
+    /* the boat, seen from above, bow up before rotating to the heading: a dark hull, and the main and jib as
+       gently curved strokes in the tack colour, with a pale edge under them so they read over the hull */
     function boatSvg(hd,wind,c){
-      var C=30, o='<svg width="60" height="60" viewBox="0 0 60 60" style="overflow:visible">';
-      o+='<g transform="rotate('+hd.toFixed(1)+' '+C+' '+C+')">'+
-         '<path d="M30,14 C35.5,20 36,31 34.3,44 L25.7,44 C24,31 24.5,20 30,14 Z" fill="'+cssv("--ink")+'" stroke="'+cssv("--halo")+'" stroke-width="1.4"/>';
+      var C=30, ink=cssv("--ink"), paper=cssv("--paper"), halo=cssv("--halo");
+      var o='<svg width="60" height="60" viewBox="0 0 60 60" style="overflow:visible"><g transform="rotate('+hd.toFixed(1)+' '+C+' '+C+')">'+
+        '<path d="M30,14 C35.5,20 36,31 34.3,44 L25.7,44 C24,31 24.5,20 30,14 Z" fill="'+ink+'" stroke="'+halo+'" stroke-width="1.4"/>';
       if(wind!=null && c!=null && c>=0){
         // the tack is the one the track shows for this minute; the sheeting follows the angle to the wind
         var rel=((hd-wind)%360+540)%360-180, twa=Math.abs(rel), side=c>=10?1:-1;   // wind over port: sails out to starboard
         var bm=Math.max(8,Math.min(85,(twa-30)*.55+8))*r, jb=Math.max(8,Math.min(50,(twa-30)*.4+8))*r;
-        var mx=30, my=24, ex=mx+side*Math.sin(bm)*18, ey=my+Math.cos(bm)*18;               // mast to boom end
-        var jx=30, jy=15, kx=jx+side*Math.sin(jb)*12, ky=jy+Math.cos(jb)*12;
+        var mx=30, my=24, ex=mx+side*Math.sin(bm)*16, ey=my+Math.cos(bm)*16;               // mast to boom end
+        var jx=30, jy=15, kx=jx+side*Math.sin(jb)*10.5, ky=jy+Math.cos(jb)*10.5;
         var sc=cssv((c>=10?"--port":"--stbd")+"2");    // the sails wear the tack's colour, as on the track
-        o+=sail(mx,my,ex,ey,side,9,sc)+sail(jx,jy,kx,ky,side,6,sc);
+        o+=sail(mx,my,ex,ey,side,4.5,halo,3.8)+sail(jx,jy,kx,ky,side,3.2,halo,3.4)+
+           sail(mx,my,ex,ey,side,4.5,sc,2.2)+sail(jx,jy,kx,ky,side,3.2,sc,1.8);
       }
-      return o+'<circle cx="30" cy="24" r="1.5" fill="'+cssv("--paper")+'" stroke="'+cssv("--ink")+'" stroke-width=".8"/></g></svg>';
+      return o+'<circle cx="30" cy="24" r="1.5" fill="'+paper+'" stroke="'+ink+'" stroke-width=".8"/></g></svg>';
     }
-    // a sail: a straight luff-to-clew chord with its belly pushed out to leeward
-    function sail(x0,y0,x1,y1,side,belly,col){
+    // a sail: the curve of the cloth from luff to clew, its belly pushed out to leeward
+    function sail(x0,y0,x1,y1,side,belly,col,sw){
       var L_=Math.hypot(x1-x0,y1-y0)||1, nx=-(y1-y0)/L_, ny=(x1-x0)/L_;
       if((nx*side)<0 || (nx===0 && ny>0)){ nx=-nx; ny=-ny; }
       var qx=(x0+x1)/2+nx*belly, qy=(y0+y1)/2+ny*belly;
-      return '<path d="M'+x0+','+y0+' Q'+qx.toFixed(1)+','+qy.toFixed(1)+' '+x1.toFixed(1)+','+y1.toFixed(1)+' Z" fill="'+col+
-             '" stroke="'+cssv("--halo")+'" stroke-width="1" stroke-linejoin="round"/>';
+      return '<path d="M'+x0+','+y0+' Q'+qx.toFixed(1)+','+qy.toFixed(1)+' '+x1.toFixed(1)+','+y1.toFixed(1)+'" fill="none" stroke="'+col+
+             '" stroke-width="'+sw+'" stroke-linecap="round"/>';
     }
     function hhmm(mn){ mn=Math.round(mn)%1440; return ("0"+Math.floor(mn/60)).slice(-2)+":"+("0"+mn%60).slice(-2); }
     function show(){
@@ -1038,10 +1048,13 @@
       var pos=[a.lat+(b.lat-a.lat)*f,a.lon+(b.lon-a.lon)*f], hd=lerpAng(a.hd,b.hd,f), k=a.kn+(b.kn-a.kn)*f, wind=a.w, c=a.c;
       boat.setLatLng(pos); boat.getElement().innerHTML=boatSvg(hd,wind,c);
       if(field) field.draw(tau);
-      var txt=(t.start?hhmm(t0+tau)+" · ":"")+k.toFixed(1)+" kn";
-      if(c!=null) txt+=c<0?" · drifting":" · "+POS[c%10].label+", "+(c>=10?"port":"starboard")+" tack";
-      var wk=windKnAt(t,tau); if(wind!=null && wk!=null) txt+=" · wind "+Math.round(wk)+" kn "+COMPASS16[Math.round(wind/22.5)%16];
-      rd.textContent=txt; rng.value=tau;
+      // fixed-width fields (the readout is monospaced), so nothing shifts as the values change
+      var seg=[];
+      if(t.start) seg.push(hhmm(t0+tau));
+      seg.push((k<10?" ":"")+k.toFixed(1)+" kn");
+      if(c!=null) seg.push((c<0?"drifting":POS[c%10].label+", "+(c>=10?"port":"starboard")+" tack").padEnd(28));
+      var wk=windKnAt(t,tau); if(wind!=null && wk!=null) seg.push("wind "+(Math.round(wk)<10?" ":"")+Math.round(wk)+" kn "+COMPASS16[Math.round(wind/22.5)%16].padEnd(3));
+      rd.innerHTML=seg.map(function(x,i){ return '<span>'+(i?'· ':'')+x+'</span>'; }).join(""); rng.value=tau;
       var cm=Math.round(t0+tau)%1440; if(t.start && cm!==sunAt){ sun.innerHTML=sunDial(t,cm); sunAt=cm; }
     }
     function frame(now){
