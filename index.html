@@ -639,11 +639,12 @@
     // a quieter chart underneath, so the routes carry the colour
     m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
     var lines=[];
-    /* fade by age: the newest sail at full strength, each older one lighter,
-       reaching 30% at the sixth-newest and staying there. Oldest drawn first,
-       so the recent routes always sit on top. */
+    /* fade by age within each home port: a harbour's newest sail at full strength, each older one from
+       there lighter, reaching 30% at the sixth-newest and staying there - so a new sail out of one
+       harbour doesn't fade another's. Oldest drawn first, so the recent routes always sit on top. */
     var tracked=D.trips.filter(function(t){return t.poly && inScope(t,WSCOPE);}).sort(function(a,b){return a.date<b.date?-1:1;});
-    function ageOp(t){ var rank=tracked.length-1-tracked.indexOf(t); return 1-0.7*Math.min(rank,5)/5; }
+    function ageOp(t){ var same=tracked.filter(function(x){ return homeOf(x)===homeOf(t); });
+      var rank=same.length-1-same.indexOf(t); return 1-0.7*Math.min(rank,5)/5; }
     tracked.forEach(function(t){
       var pts=smooth(decode(t.poly)), op=ageOp(t);
       var halo=L.polyline(pts,{color:cssv("--halo"),weight:4,opacity:.85*op,interactive:false,lineJoin:"round"}).addTo(m);
@@ -1339,7 +1340,7 @@
      Animated: routes are drawn in one at a time in date order; older ones dim
      step by step, and the oldest beyond the four on show fades to nothing
      before it's drawn again. Static for anyone who prefers reduced motion. */
-  var artTimer=null, ART_KEEP=4, ART_STEP=3200, ART_NARROW=matchMedia("(max-width:760px)"), ART_SCOPE="all", ART_ZOOM=.72, SHOW_ROSE=false;   // <1 pulls the sketch back from the routes
+  var artTimer=null, ART_KEEP=4, ART_STEP=2200, ART_NARROW=matchMedia("(max-width:760px)"), ART_SCOPE="all", ART_ZOOM=.72, SHOW_ROSE=false;   // <1 pulls the sketch back from the routes
   try{ ART_NARROW.addEventListener("change",function(){ if(D) drawArt(); }); }catch(e){}
   /* the Golden Gate Bridge seen from above, in a muted international orange. One soft, blurred
      shadow under it, offset towards the evening shadow side, makes it hover above the water;
