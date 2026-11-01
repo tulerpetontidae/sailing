@@ -228,7 +228,15 @@
   .sl-dwrap{position:relative}
   .sl-play{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--rule-2);font-family:var(--mono);font-size:11px;color:var(--ink-2);flex-wrap:wrap}
   .sl-play button{height:28px;min-width:28px;border-radius:14px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer;font-family:var(--mono);font-size:11px;padding:0 8px}
-  .sl-play input[type=range]{flex:1 1 160px;accent-color:var(--ink);min-width:120px}
+  .sl-play input[type=range]{accent-color:var(--ink);width:100%;margin:0}
+  .sl-play .sl-ptrack{flex:1 1 160px;min-width:120px;display:flex;flex-direction:column}
+  /* the races under the timeline, lined up with the slider's travel (its 16px thumb rides 8px in from each end) */
+  .sl-play .sl-prace{position:relative;height:17px;margin-top:2px}
+  .sl-play .sl-prace button{position:absolute;top:0;height:17px;min-width:0;padding:0;border:0;border-radius:0;background:none;
+    font-size:9px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;overflow:visible;white-space:nowrap}
+  .sl-play .sl-prace button::before{content:"";align-self:stretch;height:3px;border-radius:2px;background:var(--ink);opacity:.35}
+  .sl-play .sl-prace button:hover,.sl-play .sl-prace button.on{color:var(--ink)}
+  .sl-play .sl-prace button:hover::before,.sl-play .sl-prace button.on::before{opacity:1}
   .sl-play .sl-pline{flex:1 1 100%;display:flex;align-items:center;gap:8px;min-height:28px}
   #sl-pread{display:flex;flex-wrap:wrap;column-gap:1ch;font-variant-numeric:tabular-nums}
   #sl-pread span{white-space:pre}
@@ -249,6 +257,13 @@
   .sl-dinfo .sl-davg .sl-condrow{margin-top:4px;padding-top:0;border-top:0}
   .sl-dnote{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}
   .sl-dinfo .sl-dnote p{margin:0}
+  .sl-races table{width:100%;border-collapse:collapse;margin-top:4px;font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+  .sl-races th{font-weight:400;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:2px 0 3px}
+  .sl-races td{text-align:right;padding:3px 0;border-top:1px solid var(--rule-2);color:var(--ink-2)}
+  .sl-races th:first-child,.sl-races td:first-child{text-align:left}
+  .sl-races td.best{color:var(--ink);font-weight:600}
+  .sl-races button{font:inherit;color:var(--ink);background:none;border:1px solid var(--rule);border-radius:10px;padding:0 7px;cursor:pointer}
+  .sl-races button:hover{border-color:var(--ink-2)}
   @media (max-width:760px){
     .sl-dbody{grid-template-columns:1fr}
     .sl-dmap{height:300px}
@@ -715,6 +730,19 @@
       lays.forEach(function(l){ l.set(c==null?l.still:l.shift(c), c==null||inUse(l.w,c)); });
     };
   }
+  /* races sailed on a practice course: start (crossing the line upwind), the windward mark, and the finish
+     back across the same line; each row's button replays that race from its gun */
+  function sec(s){ var a=s.split(":"); return (+a[0])*3600+(+a[1])*60+(+(a[2]||0)); }
+  function mmss(x){ x=Math.round(x); return Math.floor(x/60)+":"+("0"+x%60).slice(-2); }
+  function raceTable(t){
+    if(!t.races || !t.races.length) return "";
+    var tot=t.races.map(function(r){ return sec(r.finish)-sec(r.start); }), best=Math.min.apply(null,tot);
+    return '<div class="sl-davg sl-races"><span class="lab">Races · start to finish, same line</span><table>'+
+      '<tr><th>race</th><th>gun</th><th>upwind</th><th>downwind</th><th>total</th></tr>'+
+      t.races.map(function(r,i){ return '<tr><td><button type="button" data-race="'+i+'" title="Replay race '+(i+1)+' from the start">&#9654; '+(i+1)+'</button></td>'+
+        '<td>'+r.start.slice(0,5)+'</td><td>'+mmss(sec(r.mark)-sec(r.start))+'</td><td>'+mmss(sec(r.finish)-sec(r.mark))+'</td>'+
+        '<td'+(tot[i]===best?' class="best"':'')+'>'+mmss(tot[i])+'</td></tr>'; }).join("")+'</table></div>';
+  }
   // half the tacking angle this boat sailed: the median angle to the wind while going upwind under way
   function layAngle(t){
     if(t._lay!==undefined) return t._lay;
@@ -872,7 +900,7 @@
     var rows=[["Role",RNAME[t.role]],["Boat",boatName(t)],["Home port",homeOf(t)],
       ["Time",(t.start?t.start+(t.end?'–'+t.end:'')+' · ':'')+fh(t.hours)],["Distance",t.nm!=null?t.nm.toFixed(1)+' nm':'—'],
       ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · '+(t.jib===1?'full jib':'jib '+Math.round(t.jib*100)+'%'):'')+(t.spinnaker?' · '+t.spinnaker+' spinnaker'+(t.spinnakerArea?' '+t.spinnakerArea+'\u00a0m²':''):''):''],
-      ["Course",t.marks?'windward–leeward'+(layAngle(t)?' · laylines from your tacks':''):''],
+      ["Course",t.marks?'windward–leeward practice runs':''],
       ["After sunset",t.afterSunset?Math.round(t.afterSunset)+' min':'']].filter(function(r){ return r[1]; });
     d.innerHTML='<div class="sl-dbar"><button type="button" class="sl-back" id="sl-back">&larr; All voyages</button>'+
       '<div class="sl-dtitle">Sail '+(no[t.key]||'')+'<small>'+fdate(t.date)+(t.club?' · '+t.club:'')+'</small></div>'+
@@ -881,7 +909,8 @@
       '<div class="sl-dbody"><div class="sl-dwrap"><div class="sl-dmap" id="map-detail"></div>'+
         '<button type="button" class="sl-exp sl-collapse" id="sl-collapse" aria-label="Back to all voyages" title="Back to all voyages">&#10529;</button>'+
         (t.poly?'<div class="sl-play"><button type="button" id="sl-pbtn" aria-label="Play the sail">&#9654;</button>'+
-          '<input type="range" id="sl-prange" min="0" step="0.05" value="0" aria-label="Time through the sail">'+
+          '<span class="sl-ptrack"><input type="range" id="sl-prange" min="0" step="0.05" value="0" aria-label="Time through the sail">'+
+            (t.races?'<span class="sl-prace"></span>':'')+'</span>'+
           '<span class="sl-pkey">'+
             '<button type="button" class="sl-ltog" data-l="wind" aria-pressed="'+SHOW.wind+'" title="Show or hide the wind">'+
               windKey()+'wind 0–20+ kn</button>'+
@@ -892,6 +921,7 @@
         (t.wind?'<div style="margin-bottom:6px">'+bfChip(t.wind,true)+'</div>':'')+
         rows.map(function(r){ return '<div class="row"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join("")+
         '<div class="sl-davg"><span class="lab">Averaged over the sail</span>'+condRow(t)+'</div>'+
+        raceTable(t)+
         (t.note?'<div class="sl-dnote"><p>'+t.note+'</p></div>':'')+'</div></div>';
     g.hidden=true; d.hidden=false; document.getElementById("sl-pager").style.visibility="hidden";
     document.getElementById("sl-back").onclick=closeVoyage; document.getElementById("sl-collapse").onclick=closeVoyage;
@@ -1096,6 +1126,13 @@
         rd=wrap.querySelector("#sl-pread"), sun=wrap.querySelector("#sl-psun"), sunAt=-1;
     var RATE=600;                                       // ten real minutes go by every second
     var end=Q[nq-1].mn; rng.max=end;
+    var bar=wrap.querySelector(".sl-prace"), segs=[];
+    if(bar) segs=t.races.map(function(r,i){
+      var a=Math.max(0,sec(r.start)/60-t0)/end, b=Math.min(end,sec(r.finish)/60-t0)/end, e=document.createElement("button");
+      e.type="button"; e.textContent="R"+(i+1); e.title="Race "+(i+1)+" · gun "+r.start.slice(0,5)+" · "+mmss(sec(r.finish)-sec(r.start))+" · click to replay it";
+      e.style.left="calc(8px + (100% - 16px) * "+a.toFixed(4)+")"; e.style.width="calc((100% - 16px) * "+(b-a).toFixed(4)+")";
+      e.onclick=function(){ stop(); tau=a*end; show(); play(); };
+      bar.appendChild(e); return e; });
     var icon=L.divIcon({className:"sl-boat",iconSize:[60,60],iconAnchor:[30,30],html:""});
     // flowing wind and water; plain arrows for anyone who has asked for less motion
     var still=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1148,7 +1185,11 @@
       seg.push((k<10?" ":"")+k.toFixed(1)+" kn");
       if(c!=null) seg.push((c<0?"drifting":POS[c%10].label+", "+(c>=10?"port":"starboard")+" tack").padEnd(28));
       var wk=windKnAt(t,tau); if(wind!=null && wk!=null) seg.push("wind "+(Math.round(wk)<10?" ":"")+Math.round(wk)+" kn "+COMPASS16[Math.round(wind/22.5)%16].padEnd(3));
-      rd.innerHTML=seg.map(function(x,i){ return '<span>'+(i?'· ':'')+x+'</span>'; }).join(""); rng.value=tau;
+      var now=(t0+tau)*60, ri=-1; (t.races||[]).forEach(function(r,i){ if(now>=sec(r.start) && now<=sec(r.finish)) ri=i; });
+      // a sail with races keeps the race clock's slot, blank between races, so the readout never reflows
+      segs.forEach(function(e,i){ e.classList.toggle("on",i===ri); });
+      if(t.races) seg.push(ri>=0?"race "+(ri+1)+" "+("0"+mmss(now-sec(t.races[ri].start))).slice(-5):null);
+      rd.innerHTML=seg.map(function(x,i){ return x==null?'<span>'+"".padEnd(15)+'</span>':'<span>'+(i?'· ':'')+x+'</span>'; }).join(""); rng.value=tau;
       var cm=Math.round(t0+tau)%1440; if(t.start && cm!==sunAt){ sun.innerHTML=sunDial(t,cm); sunAt=cm; }
     }
     function frame(now){
@@ -1162,6 +1203,8 @@
     function stop(){ playing=false; cancelAnimationFrame(raf); btn.innerHTML="&#9654;"; btn.setAttribute("aria-label","Play the sail"); }
     btn.onclick=function(){ playing?stop():play(); };
     rng.oninput=function(){ tau=+rng.value; show(); };
+    [].forEach.call(document.querySelectorAll("#sl-detail [data-race]"),function(b){ b.onclick=function(){
+      var r=t.races[+b.getAttribute("data-race")]; stop(); tau=Math.max(0,sec(r.start)/60-t0); show(); play(); }; });
     m.on("unload",stop);
     show();
   }
