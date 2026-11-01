@@ -663,7 +663,7 @@
        bisector) and the tacking angle, which the model can be 10-20 degrees off; the replay then swings
        them by the model's shifts from its average over that time */
     var lay=layAngle(t), wAt=windFn(t), t0=t.start?hm(t.start):0, K=Math.cos(37.85*Math.PI/180), lays=[];
-    var Q=t.poly?sailPoints(decode(t.poly),t):[];
+    var Q=t.poly?sailPoints(decode(t.poly),t):[]; var LAYN=16;
     function cmean(a){ var x=0,y=0; a.forEach(function(v){ x+=Math.sin(v*Math.PI/180); y+=Math.cos(v*Math.PI/180); });
       return (Math.atan2(x,y)*180/Math.PI+360)%360; }
     function fromTacks(a,b){
@@ -681,11 +681,15 @@
     if(Q.length) ms.forEach(function(w){ if(w.k!=="W") return;
       var a=Math.max(t0,w.a==null?t0:w.a), b=Math.min(tEnd,w.b==null?tEnd:w.b), model=meanWind(a,b), tk=fromTacks(a-t0,b-t0);
       var still=tk?tk.wind:model, ang=tk?tk.lay:lay; if(ang==null) return;
-      var len=lee?dist(w.at,lee.at)*1.15:900, o={weight:1.3,opacity:.7,interactive:false,lineCap:"round"};
-      var s=L.polyline([w.at,w.at],L.extend({color:cssv("--stbd2")},o)).addTo(m), p=L.polyline([w.at,w.at],L.extend({color:cssv("--port2")},o)).addTo(m);
+      var len=lee?dist(w.at,lee.at)*1.15:900;
+      // each line is a run of short pieces, full strength near the mark and fading out over its far half
+      function line(col){ var r=[]; for(var i=0;i<LAYN;i++) r.push(L.polyline([w.at,w.at],{color:col,weight:1.3,opacity:0,interactive:false,lineCap:"butt"}).addTo(m)); return r; }
+      function lay1(segs,brg,on){ segs.forEach(function(g,i){ var f=(i+.5)/LAYN, k=f<.4?1:.5+.5*Math.cos(Math.PI*(f-.4)/.6);
+        g.setLatLngs([dest(w.at,brg,len*i/LAYN),dest(w.at,brg,len*(i+1)/LAYN)]); g.setStyle({opacity:on?.7*k:0}); }); }
+      var s=line(cssv("--stbd2")), p=line(cssv("--port2"));
       // a starboard-tack boat heads (wind - angle), so the line it fetches the mark along runs back the other way
-      function set(wd){ s.setLatLngs([w.at,dest(w.at,wd-ang+180,len)]); p.setLatLngs([w.at,dest(w.at,wd+ang+180,len)]); }
-      set(still); lays.push({w:w,s:s,p:p,set:set,still:still,shift:function(c){ return still+((wAt(c-t0)-model)%360+540)%360-180; }});
+      function set(wd,on){ lay1(s,wd-ang+180,on); lay1(p,wd+ang+180,on); }
+      set(still,true); lays.push({w:w,set:set,still:still,shift:function(c){ return still+((wAt(c-t0)-model)%360+540)%360-180; }});
     });
     ms.forEach(function(k){
       var arc='M12,0 A12,12 0 0 0 -12,0 M-14.6,-2.8 L-12,.6 L-9.4,-2.8', g;
@@ -708,8 +712,7 @@
       ms.forEach(function(k){ k.mk.setOpacity(c==null||inUse(k,c)?1:.3); });
       axes.forEach(function(x){ x.line.setStyle({opacity:c==null||(inUse(x.w,c)&&inUse(x.l,c))?.5:0}); });
       // still: each mark's laylines in the average wind while it was laid; playing: only the mark in use, in the wind of that minute
-      lays.forEach(function(l){ var on=c==null||inUse(l.w,c); l.set(c==null?l.still:l.shift(c));
-        l.s.setStyle({opacity:on?.7:0}); l.p.setStyle({opacity:on?.7:0}); });
+      lays.forEach(function(l){ l.set(c==null?l.still:l.shift(c), c==null||inUse(l.w,c)); });
     };
   }
   // half the tacking angle this boat sailed: the median angle to the wind while going upwind under way
