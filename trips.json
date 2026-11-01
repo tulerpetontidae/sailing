@@ -239,6 +239,43 @@
   "jib": 1.0,
   "spinnaker": "asymmetric",
   "spinnakerArea": 89,
-  "note": "Race practice, rotating through every role. Starting manoeuvres, then practice runs between the windward and leeward marks with the spinnaker. Practised pre-rigging the spinnaker before rounding the windward mark."
+  "note": "Race practice, rotating through every role. Starting manoeuvres, then practice runs between the windward and leeward marks with the spinnaker. Practised pre-rigging the spinnaker before rounding the windward mark.",
+  "marks": [
+   {
+    "k": "W",
+    "at": [
+     37.86649,
+     -122.34058
+    ],
+    "to": "13:30",
+    "est": true
+   },
+   {
+    "k": "W",
+    "at": [
+     37.86212,
+     -122.33647
+    ],
+    "from": "13:30",
+    "est": true
+   },
+   {
+    "k": "L",
+    "at": [
+     37.86756,
+     -122.32572
+    ],
+    "rc": true,
+    "passed": "13:43"
+   },
+   {
+    "k": "pin",
+    "at": [
+     37.86643,
+     -122.32539
+    ],
+    "passed": "12:06"
+   }
+  ]
  }
 ]

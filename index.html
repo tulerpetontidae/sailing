@@ -23,7 +23,7 @@
 <style>
   :root{
     --page:#EEF2F4; --paper:#FFFFFF; --ink:#0F1A24; --ink-2:#3E4C58; --muted:#7A8792; --muted-d:#A3ADB5;
-    --rule:#D5DDE2; --rule-2:#E7ECEF;
+    --rule:#D5DDE2; --rule-2:#E7ECEF; --sea:#cbdeef;
     --hero-bg:#0B1F33; --hero-fg:#EEF2F4; --hero-line:transparent;
     /* role ramp, ordinal by responsibility - validated light & dark (dataviz --ordinal) */
     --r-student:#86b6ef; --r-crew:#5598e7; --r-mate:#256abf; --r-skipper:#0d366b;
@@ -43,7 +43,7 @@
   }
   :root[data-theme="dark"]{
     --page:#0B0F13; --paper:#151B21; --ink:#F2F5F7; --ink-2:#C2CBD2; --muted:#85909A; --muted-d:#5F6A73;
-    --rule:#26303A; --rule-2:#1D252D;
+    --rule:#26303A; --rule-2:#1D252D; --sea:#232227;
     --hero-bg:#13212F; --hero-fg:#F2F5F7; --hero-line:#26303A;
     --r-student:#184f95; --r-crew:#2a78d6; --r-mate:#5598e7; --r-skipper:#9ec5f4;
     --q0:#1D252D; --q1:#0d366b; --q2:#184f95; --q3:#256abf; --q4:#3987e5; --q5:#6da7ec; --q6:#9ec5f4;
@@ -127,13 +127,15 @@
     background:transparent;color:var(--ink-2);border-radius:99px;cursor:pointer}
   .sl-tab:hover{border-color:var(--muted-d);color:var(--ink)}
   .sl-tab[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-  .sl-map{height:440px;border-radius:3px;border:1px solid var(--rule);background:var(--rule-2)}
+  .sl-map{height:440px;border-radius:3px;border:1px solid var(--rule);background:var(--sea)}
   .sl-pane[hidden]{display:none}
   .leaflet-container{font-family:var(--body)}
-  .leaflet-tile-container img.leaflet-tile{width:256.5px!important;height:256.5px!important}
+  .leaflet-tile-container img.leaflet-tile{mix-blend-mode:normal;width:256.5px!important;height:256.5px!important}
   .sl-alab.left{transform:translate(-100%,-50%) translateX(-6px)}
   .sl-alab.below{transform:translate(-100%,0) translate(-4px,14px)}
   .sl-alab.right{transform:translate(0,-50%) translateX(6px)}
+  .sl-rlab{font:600 9px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;
+    transform:translate(14px,-50%);text-shadow:0 0 3px var(--halo),0 0 3px var(--halo),0 0 2px var(--halo)}
   .sl-alab{font-family:var(--mono);font-size:9px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);
     border-radius:2px;padding:1px 4px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block;pointer-events:none}
   .sl-alab b{font-weight:500}
@@ -204,7 +206,7 @@
   /* small multiples */
   .sl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
   .sl-mini{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--paper)}
-  .sl-mini .m{height:150px;background:var(--rule-2)}
+  .sl-mini .m{height:150px;background:var(--sea)}
   .sl-mini{position:relative}
   .sl-mini .m{cursor:zoom-in}
   #pane-trips [hidden]{display:none!important}
@@ -222,7 +224,7 @@
   .sl-dnav button{width:32px;height:32px;border-radius:50%;border:1px solid var(--rule);background:var(--paper);color:var(--ink);font-size:18px;cursor:pointer}
   .sl-dnav button:disabled{opacity:.3;cursor:default}
   .sl-dbody{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}
-  .sl-dmap{height:440px;background:var(--rule-2)}
+  .sl-dmap{height:440px;background:var(--sea)}
   .sl-dwrap{position:relative}
   .sl-play{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--rule-2);font-family:var(--mono);font-size:11px;color:var(--ink-2);flex-wrap:wrap}
   .sl-play button{height:28px;min-width:28px;border-radius:14px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer;font-family:var(--mono);font-size:11px;padding:0 8px}
@@ -560,7 +562,7 @@
       ? L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
           {maxZoom:16,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'})
       : L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
-          {maxZoom:16,attribution:'Tiles &copy; Esri &mdash; GEBCO, NOAA, National Geographic, DeLorme, HERE, Geonames.org, and others'});
+          {maxZoom:16,maxNativeZoom:13,attribution:'Tiles &copy; Esri &mdash; GEBCO, NOAA, National Geographic, DeLorme, HERE, Geonames.org, and others'});
   }
   /* home ports: Sausalito by default, a trip can name another ("home") */
   function homeOf(t){ return t.home||"Sausalito"; }
@@ -632,6 +634,91 @@
       var a=L.marker([t.anchor.lat,t.anchor.lon],{icon:markIcon("anchor",size),interactive:tipOn,keyboard:false}).addTo(m);
       if(tipOn) a.on("mousemove",function(e){ showTip("<b>Anchored</b> · "+fdate(t.date)+"<br>about "+t.anchor.min+" min, anchoring practice",e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
     });
+  }
+  /* race marks on a practice course: ink buoys lettered W (windward) and L (leeward), each with an arc showing
+     it was left to port, and a faint dotted axis between the pair in use. The committee boat (rc) flies a
+     flag, and the start line is dashed from it to the pin, a hollow buoy. A mark that was moved carries
+     from/to times; returns a function the replay calls with the minute of day to dim positions not in use */
+  function raceMarks(m,t){
+    if(!t.marks || !t.marks.length) return null;
+    var ink=cssv("--ink"), paper=cssv("--paper"), halo=cssv("--halo"), NAME={W:"Windward mark",L:"Leeward mark",pin:"Pin end"};
+    function hm(s){ return s?(+s.slice(0,2))*60+(+s.slice(3,5)):null; }
+    var ms=t.marks.map(function(k){ return {k:k.k,at:k.at,a:hm(k.from),b:hm(k.to),from:k.from,to:k.to,est:k.est,rc:k.rc,passed:k.passed}; });
+    function inUse(k,c){ return (k.a==null||c>=k.a) && (k.b==null||c<k.b); }
+    var axes=[];
+    ms.forEach(function(w){ if(w.k!=="W") return; ms.forEach(function(l){ if(l.k!=="L") return;
+      var lo=Math.max(w.a==null?-1:w.a,l.a==null?-1:l.a), hi=Math.min(w.b==null?1e4:w.b,l.b==null?1e4:l.b);
+      if(lo<hi) axes.push({w:w,l:l,line:L.polyline([w.at,l.at],{color:ink,weight:1.2,opacity:.5,dashArray:"1 5",lineCap:"round",interactive:false}).addTo(m)});
+    }); });
+    var rc=ms.filter(function(k){ return k.rc; })[0], pin=ms.filter(function(k){ return k.k==="pin"; })[0];
+    if(rc && pin){
+      L.polyline([rc.at,pin.at],{color:halo,weight:4,opacity:.8,interactive:false}).addTo(m);
+      L.polyline([rc.at,pin.at],{color:ink,weight:1.6,dashArray:"5 4",interactive:false}).addTo(m);
+      // the label sits off the line's middle, on the side away from the wind's approach
+      var mid=[(rc.at[0]+pin.at[0])/2,(rc.at[1]+pin.at[1])/2];
+      L.marker(mid,{interactive:false,keyboard:false,icon:L.divIcon({className:"sl-rlab",iconSize:null,html:"start"})}).addTo(m);
+    }
+    /* laylines: from each windward mark, the two close-hauled courses that just fetch it, in the colour of
+       their tack. While a mark was laid, the boat's own upwind headings on each tack give the wind (their
+       bisector) and the tacking angle, which the model can be 10-20 degrees off; the replay then swings
+       them by the model's shifts from its average over that time */
+    var lay=layAngle(t), wAt=windFn(t), t0=t.start?hm(t.start):0, K=Math.cos(37.85*Math.PI/180), lays=[];
+    var Q=t.poly?sailPoints(decode(t.poly),t):[];
+    function cmean(a){ var x=0,y=0; a.forEach(function(v){ x+=Math.sin(v*Math.PI/180); y+=Math.cos(v*Math.PI/180); });
+      return (Math.atan2(x,y)*180/Math.PI+360)%360; }
+    function fromTacks(a,b){
+      var S=[],P=[]; Q.forEach(function(q){ if(q.w==null || q.kn<2 || q.mn<a || q.mn>b) return;
+        var rel=((q.hd-q.w)%360+540)%360-180; if(Math.abs(rel)<75) (rel<0?S:P).push(q.hd); });
+      if(S.length<5 || P.length<5) return null;
+      var s=cmean(S), p=cmean(P), half=Math.abs(((p-s)%360+540)%360-180)/2;
+      return {wind:cmean([s,p]), lay:Math.max(35,Math.min(55,half))};
+    }
+    function dest(p,brg,d){ var b=brg*Math.PI/180; return [p[0]+d*Math.cos(b)/111320,p[1]+d*Math.sin(b)/(111320*K)]; }
+    function dist(p,q){ return Math.hypot((q[0]-p[0])*111320,(q[1]-p[1])*111320*K); }
+    function meanWind(a,b){ var x=0,y=0; for(var c=a;c<=b;c+=5){ var d=wAt(c-t0)*Math.PI/180; x+=Math.sin(d); y+=Math.cos(d); }
+      return (Math.atan2(x,y)*180/Math.PI+360)%360; }
+    var tEnd=t0+Math.round(t.hours*60), lee=ms.filter(function(k){ return k.k==="L"; })[0];
+    if(Q.length) ms.forEach(function(w){ if(w.k!=="W") return;
+      var a=Math.max(t0,w.a==null?t0:w.a), b=Math.min(tEnd,w.b==null?tEnd:w.b), model=meanWind(a,b), tk=fromTacks(a-t0,b-t0);
+      var still=tk?tk.wind:model, ang=tk?tk.lay:lay; if(ang==null) return;
+      var len=lee?dist(w.at,lee.at)*1.15:900, o={weight:1.3,opacity:.7,interactive:false,lineCap:"round"};
+      var s=L.polyline([w.at,w.at],L.extend({color:cssv("--stbd2")},o)).addTo(m), p=L.polyline([w.at,w.at],L.extend({color:cssv("--port2")},o)).addTo(m);
+      // a starboard-tack boat heads (wind - angle), so the line it fetches the mark along runs back the other way
+      function set(wd){ s.setLatLngs([w.at,dest(w.at,wd-ang+180,len)]); p.setLatLngs([w.at,dest(w.at,wd+ang+180,len)]); }
+      set(still); lays.push({w:w,s:s,p:p,set:set,still:still,shift:function(c){ return still+((wAt(c-t0)-model)%360+540)%360-180; }});
+    });
+    ms.forEach(function(k){
+      var arc='M12,0 A12,12 0 0 0 -12,0 M-14.6,-2.8 L-12,.6 L-9.4,-2.8', g;
+      if(k.k==="pin") g='<circle r="5" fill="'+paper+'" stroke="'+halo+'" stroke-width="4"/><circle r="5" fill="'+paper+'" stroke="'+ink+'" stroke-width="1.8"/>';
+      else g='<path d="'+arc+'" fill="none" stroke="'+halo+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+
+        '<path d="'+arc+'" fill="none" stroke="'+ink+'" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'+
+        (k.rc?'<path d="M5.5,-5 L5.5,-17" stroke="'+halo+'" stroke-width="3.4"/><path d="M5.5,-5 L5.5,-17" stroke="'+ink+'" stroke-width="1.3"/>'+
+              '<path d="M6.2,-17 L14,-14.4 L6.2,-11.8 Z" fill="'+ink+'" stroke="'+halo+'" stroke-width="1"/>':'')+
+        '<circle r="7.8" fill="'+ink+'" stroke="'+halo+'" stroke-width="1.6"/>'+
+        '<text y="3.3" text-anchor="middle" fill="'+paper+'" style="font:700 9.5px var(--mono)">'+k.k+'</text>';
+      k.mk=L.marker(k.at,{icon:L.divIcon({className:"",iconSize:[32,32],iconAnchor:[16,16],
+        html:'<svg width="32" height="32" viewBox="-16 -16 32 32" style="overflow:visible">'+g+'</svg>'}),keyboard:false}).addTo(m);
+      var when=k.from&&k.to?k.from+"–"+k.to:k.from?"from "+k.from:k.to?"until "+k.to:"";
+      var tip="<b>"+NAME[k.k]+"</b>"+(k.rc?" · the committee boat":"")+(when?" · "+when:"")+"<br>"+
+        (k.k==="pin"?"of the start line, from the committee boat":"left to port")+(k.passed?" · passed "+k.passed:"")+
+        (k.est?" · position estimated from the roundings":"");
+      k.mk.on("mousemove",function(e){ showTip(tip,e.originalEvent.clientX,e.originalEvent.clientY); }).on("mouseout",hideTip);
+    });
+    return function(c){
+      ms.forEach(function(k){ k.mk.setOpacity(c==null||inUse(k,c)?1:.3); });
+      axes.forEach(function(x){ x.line.setStyle({opacity:c==null||(inUse(x.w,c)&&inUse(x.l,c))?.5:0}); });
+      // still: each mark's laylines in the average wind while it was laid; playing: only the mark in use, in the wind of that minute
+      lays.forEach(function(l){ var on=c==null||inUse(l.w,c); l.set(c==null?l.still:l.shift(c));
+        l.s.setStyle({opacity:on?.7:0}); l.p.setStyle({opacity:on?.7:0}); });
+    };
+  }
+  // half the tacking angle this boat sailed: the median angle to the wind while going upwind under way
+  function layAngle(t){
+    if(t._lay!==undefined) return t._lay;
+    var a=[]; if(t.poly) sailPoints(decode(t.poly),t).forEach(function(q){
+      if(q.w==null || q.kn<2) return; var x=Math.abs(((q.hd-q.w)%360+540)%360-180); if(x<70) a.push(x); });
+    a.sort(function(x,y){ return x-y; });
+    return t._lay = a.length>20 ? Math.max(35,Math.min(55,Math.round(a[a.length>>1]))) : null;
   }
 
   function buildAll(){
@@ -781,7 +868,8 @@
     if(maps.detail){ maps.detail.remove(); delete maps.detail; }
     var rows=[["Role",RNAME[t.role]],["Boat",boatName(t)],["Home port",homeOf(t)],
       ["Time",(t.start?t.start+(t.end?'–'+t.end:'')+' · ':'')+fh(t.hours)],["Distance",t.nm!=null?t.nm.toFixed(1)+' nm':'—'],
-      ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · '+(t.jib===1?'full jib':'jib '+Math.round(t.jib*100)+'%'):'')+(t.spinnaker?' · '+t.spinnaker+' spinnaker'+(t.spinnakerArea?' '+t.spinnakerArea+' m²':''):''):''],
+      ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · '+(t.jib===1?'full jib':'jib '+Math.round(t.jib*100)+'%'):'')+(t.spinnaker?' · '+t.spinnaker+' spinnaker'+(t.spinnakerArea?' '+t.spinnakerArea+'\u00a0m²':''):''):''],
+      ["Course",t.marks?'windward–leeward'+(layAngle(t)?' · laylines from your tacks':''):''],
       ["After sunset",t.afterSunset?Math.round(t.afterSunset)+' min':'']].filter(function(r){ return r[1]; });
     d.innerHTML='<div class="sl-dbar"><button type="button" class="sl-back" id="sl-back">&larr; All voyages</button>'+
       '<div class="sl-dtitle">Sail '+(no[t.key]||'')+'<small>'+fdate(t.date)+(t.club?' · '+t.club:'')+'</small></div>'+
@@ -813,6 +901,7 @@
     m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
     drawTrack(m,t,[3.4,6,3]);
     addMarks(m,20,{only:t});
+    m._race=raceMarks(m,t);
     if(t.poly) voyagePlayer(m,t,decode(t.poly));
     maps.detail=m;
     d.scrollIntoView({block:"nearest"});
@@ -1049,6 +1138,7 @@
       var pos=[a.lat+(b.lat-a.lat)*f,a.lon+(b.lon-a.lon)*f], hd=lerpAng(a.hd,b.hd,f), k=a.kn+(b.kn-a.kn)*f, wind=a.w, c=a.c;
       boat.setLatLng(pos); boat.getElement().innerHTML=boatSvg(hd,wind,c);
       if(field) field.draw(tau);
+      if(m._race) m._race(tau>0?t0+tau:null);      // before the replay starts, every mark position shows
       // fixed-width fields (the readout is monospaced), so nothing shifts as the values change
       var seg=[];
       if(t.start) seg.push(hhmm(t0+tau));
