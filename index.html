@@ -135,7 +135,8 @@
   .sl-alab.below{transform:translate(-100%,0) translate(-4px,14px)}
   .sl-alab.right{transform:translate(0,-50%) translateX(6px)}
   .sl-rlab{font:600 9px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;
-    transform:translate(12px,-50%);text-shadow:0 0 3px var(--halo),0 0 3px var(--halo),0 0 2px var(--halo)}
+    text-shadow:0 0 3px var(--halo),0 0 3px var(--halo),0 0 2px var(--halo)}
+  .sl-rlab span{display:block;padding-left:.12em;transform:translate(-50%,9px)}   /* Leaflet owns the marker's own transform; the padding balances the letter-spacing after the last letter */
   .sl-alab{font-family:var(--mono);font-size:9px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);
     border-radius:2px;padding:1px 4px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block;pointer-events:none}
   .sl-alab b{font-weight:500}
@@ -672,8 +673,8 @@
       var crs=L.svg({pane:"course"});
       L.polyline([rc.at,pin.at],{renderer:crs,color:halo,weight:4,opacity:.8,interactive:false}).addTo(m);
       L.polyline([rc.at,pin.at],{renderer:crs,color:ink,weight:1.6,dashArray:"5 4",interactive:false}).addTo(m);
-      // the word sits just beyond the pin, clear of the buoy
-      L.marker(pin.at,{pane:"course",interactive:false,keyboard:false,icon:L.divIcon({className:"sl-rlab",iconSize:null,html:"start"})}).addTo(m);
+      // the word sits just under the pin, clear of the buoy
+      L.marker(pin.at,{pane:"course",interactive:false,keyboard:false,icon:L.divIcon({className:"sl-rlab",iconSize:null,html:"<span>start</span>"})}).addTo(m);
     }
     /* laylines: from each windward mark, the two close-hauled courses that just fetch it, in the colour of
        their tack. While a mark was laid, the boat's own upwind headings on each tack give the wind (their
