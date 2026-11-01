@@ -643,7 +643,7 @@
     if(!t.marks || !t.marks.length) return null;
     var ink=cssv("--ink"), paper=cssv("--paper"), halo=cssv("--halo"), NAME={W:"Windward mark",L:"Leeward mark",pin:"Pin end"};
     function hm(s){ return s?(+s.slice(0,2))*60+(+s.slice(3,5)):null; }
-    var ms=t.marks.map(function(k){ return {k:k.k,at:k.at,a:hm(k.from),b:hm(k.to),from:k.from,to:k.to,est:k.est,rc:k.rc,passed:k.passed}; });
+    var ms=t.marks.map(function(k){ return {k:k.k,at:k.at,a:hm(k.from),b:hm(k.to),from:k.from,to:k.to,est:k.est,rc:k.rc,passed:k.passed,tk:hm(k.tacksFrom)}; });
     function inUse(k,c){ return (k.a==null||c>=k.a) && (k.b==null||c<k.b); }
     var axes=[];
     ms.forEach(function(w){ if(w.k!=="W") return; ms.forEach(function(l){ if(l.k!=="L") return;
@@ -660,8 +660,8 @@
     }
     /* laylines: from each windward mark, the two close-hauled courses that just fetch it, in the colour of
        their tack. While a mark was laid, the boat's own upwind headings on each tack give the wind (their
-       bisector) and the tacking angle, which the model can be 10-20 degrees off; the replay then swings
-       them by the model's shifts from its average over that time */
+       bisector) and the tacking angle, which the model can be 10-20 degrees off (tacksFrom skips earlier
+       practice); the replay then swings them by the model's shifts from its average over that time */
     var lay=layAngle(t), wAt=windFn(t), t0=t.start?hm(t.start):0, K=Math.cos(37.85*Math.PI/180), lays=[];
     var Q=t.poly?sailPoints(decode(t.poly),t):[]; var LAYN=16;
     function cmean(a){ var x=0,y=0; a.forEach(function(v){ x+=Math.sin(v*Math.PI/180); y+=Math.cos(v*Math.PI/180); });
@@ -679,7 +679,7 @@
       return (Math.atan2(x,y)*180/Math.PI+360)%360; }
     var tEnd=t0+Math.round(t.hours*60), lee=ms.filter(function(k){ return k.k==="L"; })[0];
     if(Q.length) ms.forEach(function(w){ if(w.k!=="W") return;
-      var a=Math.max(t0,w.a==null?t0:w.a), b=Math.min(tEnd,w.b==null?tEnd:w.b), model=meanWind(a,b), tk=fromTacks(a-t0,b-t0);
+      var a=Math.max(t0,w.tk!=null?w.tk:w.a==null?t0:w.a), b=Math.min(tEnd,w.b==null?tEnd:w.b), model=meanWind(a,b), tk=fromTacks(a-t0,b-t0);
       var still=tk?tk.wind:model, ang=tk?tk.lay:lay; if(ang==null) return;
       var len=lee?dist(w.at,lee.at)*1.15:900;
       // each line is a run of short pieces, full strength near the mark and fading out over its far half
