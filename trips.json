@@ -204,6 +204,7 @@
   "reef": 0,
   "jib": 1.0,
   "spinnaker": "asymmetric",
+  "spinnakerArea": 89,
   "note": "Asymmetric spinnaker handling, rotating through every position: bow, mast, pit, spinnaker trimmer, main trimmer and driver. Practised hoists (port side), inside gybes and windward douses. Got more familiar with the cunningham and adjusting backstay tension."
  },
  {
@@ -220,6 +221,24 @@
   "reef": 0,
   "jib": 1.0,
   "spinnaker": "asymmetric",
+  "spinnakerArea": 89,
   "note": "More practice in the racing roles. Optimised sailing in extremely light conditions. Then trained leeward and Mexican douses, and 360s with the spinnaker."
+ },
+ {
+  "key": "2026-10-31",
+  "strava": 20809933079,
+  "boat": "Nirvana",
+  "type": "J/105",
+  "ft": 35,
+  "role": "student",
+  "club": "Race practice",
+  "home": "Berkeley Marina",
+  "aboard": 7,
+  "aboardNote": "6 + instructor",
+  "reef": 0,
+  "jib": 1.0,
+  "spinnaker": "asymmetric",
+  "spinnakerArea": 89,
+  "note": "Race practice, rotating through every role. Starting manoeuvres, then practice runs between the windward and leeward marks with the spinnaker. Practised pre-rigging the spinnaker before rounding the windward mark."
  }
 ]

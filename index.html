@@ -781,7 +781,7 @@
     if(maps.detail){ maps.detail.remove(); delete maps.detail; }
     var rows=[["Role",RNAME[t.role]],["Boat",boatName(t)],["Home port",homeOf(t)],
       ["Time",(t.start?t.start+(t.end?'–'+t.end:'')+' · ':'')+fh(t.hours)],["Distance",t.nm!=null?t.nm.toFixed(1)+' nm':'—'],
-      ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · '+(t.jib===1?'full jib':'jib '+Math.round(t.jib*100)+'%'):'')+(t.spinnaker?' · '+t.spinnaker+' spinnaker':''):''],
+      ["Aboard",t.aboard?t.aboard+(t.aboardNote?' ('+t.aboardNote+')':''):''],["Trim",t.reef!=null?(t.reef?'reef '+t.reef:'full main')+(t.jib!=null?' · '+(t.jib===1?'full jib':'jib '+Math.round(t.jib*100)+'%'):'')+(t.spinnaker?' · '+t.spinnaker+' spinnaker'+(t.spinnakerArea?' '+t.spinnakerArea+' m²':''):''):''],
       ["After sunset",t.afterSunset?Math.round(t.afterSunset)+' min':'']].filter(function(r){ return r[1]; });
     d.innerHTML='<div class="sl-dbar"><button type="button" class="sl-back" id="sl-back">&larr; All voyages</button>'+
       '<div class="sl-dtitle">Sail '+(no[t.key]||'')+'<small>'+fdate(t.date)+(t.club?' · '+t.club:'')+'</small></div>'+
