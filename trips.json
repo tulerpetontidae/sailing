@@ -271,18 +271,114 @@
   "races": [
    {
     "start": "13:48:46",
-    "mark": "14:03:55",
+    "marks": [
+     "14:03:55"
+    ],
     "finish": "14:13:27"
    },
    {
     "start": "14:23:48",
-    "mark": "14:34:11",
+    "marks": [
+     "14:34:11"
+    ],
     "finish": "14:42:39"
    },
    {
     "start": "14:54:04",
-    "mark": "15:03:49",
+    "marks": [
+     "15:03:49"
+    ],
     "finish": "15:13:24"
+   }
+  ],
+  "course": "windward–leeward practice runs"
+ },
+ {
+  "key": "2026-11-01",
+  "strava": 20823809620,
+  "boat": "Nirvana",
+  "type": "J/105",
+  "ft": 35,
+  "role": "student",
+  "club": "Friendly race vs Resolute",
+  "home": "Berkeley Marina",
+  "aboard": 7,
+  "aboardNote": "6 + instructor",
+  "reef": 0,
+  "jib": 1.0,
+  "spinnaker": "asymmetric",
+  "spinnakerArea": 89,
+  "course": "four marks, finish back on the start line",
+  "note": "A friendly race against Resolute, another student J/105 (we won by a margin!). Same sails and trim as the day before, rotating through the roles again.",
+  "marks": [
+   {
+    "k": "RC",
+    "at": [
+     37.867567,
+     -122.325761
+    ],
+    "rc": true,
+    "passed": "11:08"
+   },
+   {
+    "k": "pin",
+    "at": [
+     37.866311,
+     -122.32665
+    ],
+    "passed": "11:09"
+   },
+   {
+    "k": "1",
+    "at": [
+     37.879865,
+     -122.414773
+    ],
+    "round": "port",
+    "passed": "13:52",
+    "est": true
+   },
+   {
+    "k": "2",
+    "at": [
+     37.864293,
+     -122.408909
+    ],
+    "round": "port",
+    "passed": "14:13",
+    "est": true
+   },
+   {
+    "k": "3",
+    "at": [
+     37.856883,
+     -122.34976
+    ],
+    "round": "stbd",
+    "passed": "14:37",
+    "est": true
+   },
+   {
+    "k": "4",
+    "at": [
+     37.833642,
+     -122.395679
+    ],
+    "round": "port",
+    "passed": "15:18",
+    "est": true
+   }
+  ],
+  "races": [
+   {
+    "start": "12:10:20",
+    "marks": [
+     "13:52:47",
+     "14:13:29",
+     "14:37:42",
+     "15:18:05"
+    ],
+    "finish": "15:58:04"
    }
   ]
  }
