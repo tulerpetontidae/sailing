@@ -998,6 +998,7 @@
   }
   function closeVoyage(){
     var key=SEL; SEL=null;
+    try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){}
     var d=document.getElementById("sl-detail"), g=document.getElementById("sl-grid"), was=d.getBoundingClientRect();
     if(maps.detail){ maps.detail.remove(); delete maps.detail; }
     d.hidden=true; d.innerHTML=""; g.hidden=false; document.getElementById("sl-pager").style.visibility="";
@@ -1011,6 +1012,7 @@
     if(i<0){ SEL=null; var dd_=document.getElementById("sl-detail"); dd_.hidden=true; dd_.innerHTML="";       // e.g. filtered out by the harbour switch
       document.getElementById("sl-grid").hidden=false; document.getElementById("sl-pager").style.visibility=""; return; }
     SEL=key; var t=list[i], no=sailNumbers(), d=document.getElementById("sl-detail"), g=document.getElementById("sl-grid");
+    if(no[t.key]) try{ history.replaceState(null,"","#sail-"+no[t.key]); }catch(e){}      // the address is a link to this sail
     var cardEl=!g.hidden && g.querySelector('.sl-mini[data-k="'+key+'"]'), from=cardEl?cardEl.getBoundingClientRect():null;
     if(maps.detail){ maps.detail.remove(); delete maps.detail; }
     var rows=[["Role",RNAME[t.role]],["Boat",boatName(t)],["Home port",homeOf(t)],
@@ -1032,6 +1034,8 @@
               windKey()+'wind 0–20+ kn</button>'+
             '<button type="button" class="sl-ltog" data-l="current" aria-pressed="'+SHOW.current+'" title="Show or hide the tidal current">'+
               '<i class="sl-cramp"></i>current 0–3 kn</button>'+
+            '<button type="button" class="sl-ltog" data-l="track" aria-pressed="'+SHOW.track+'" title="Show the whole track, or only a fading trail behind the boat">'+
+              '<svg width="18" height="10" viewBox="0 0 18 10" style="margin-right:5px"><path d="M2,8 C6,1 11,9 16,2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>full track</button>'+
             (t.races||(t.marks||[]).some(function(k){ return k.k==="W"; })?'<button type="button" class="sl-ltog" data-l="course" aria-pressed="'+SHOW.course+'" title="Show or hide the laylines, wind ladder and course lines">'+
               '<svg width="18" height="10" viewBox="0 0 18 10" style="margin-right:5px"><path d="M2,3 L16,3" stroke="currentColor" stroke-opacity=".35"/>'+
               '<path d="M9,9 L3,1" stroke="'+cssv("--stbd2")+'" stroke-width="1.4"/><path d="M9,9 L15,1" stroke="'+cssv("--port2")+'" stroke-width="1.4"/></svg>laylines · ladder</button>':'')+'</span>'+
@@ -1051,7 +1055,7 @@
     tiles().addTo(m); labels(m);
     var b=t.poly?L.latLngBounds(decode(t.poly)):allBounds(homeOf(t)); m._fit=b.pad(t.poly?.12:.07); m._less=t.poly?0:zoomLess(homeOf(t)); refit(m);
     m.getPane("tilePane").style.filter = root.getAttribute("data-theme")==="dark" ? "saturate(.6)" : "saturate(.45) brightness(1.05)";
-    drawTrack(m,t,[3.4,6,3]);
+    m._trail=!!t.poly; drawTrack(m,t,[3.4,6,3]);
     addMarks(m,20,{only:t});
     m._race=raceMarks(m,t);
     if(t.poly) voyagePlayer(m,t,decode(t.poly));
@@ -1116,7 +1120,7 @@
      from NOAA's prediction points and fade to nothing a few km from the nearest one, so the colour
      never claims more than the predictions know. Streaks move at a fixed pace on screen - their
      speed shows the wind's strength, not the replay's clock */
-  var SHOW={wind:true,current:true,course:true};
+  var SHOW={wind:true,current:true,course:true,track:true};
   var WIND_STEPS=[[.12,.7],[.2,.85],[.3,1],[.42,1.25],[.55,1.5],[.7,1.8]];   // [opacity, width] for 0-4, 4-8 ... 20+ kn
   function windKey(){ var o='<svg width="58" height="12" aria-hidden="true" style="margin-right:6px">';
     WIND_STEPS.forEach(function(w,i){ o+='<line x1="'+(3+i*9)+'" y1="10" x2="'+(9+i*9)+'" y2="2" stroke="currentColor" stroke-opacity="'+w[0]+'" stroke-width="'+(w[1]+.3)+'" stroke-linecap="round"/>'; });
@@ -1260,9 +1264,25 @@
     var field=(t.wf||t.cf)?(still?new FieldLayer(t):new FlowLayer(t)):null;
     if(field) field.addTo(m);
     [].forEach.call(wrap.querySelectorAll(".sl-ltog"),function(b){ b.onclick=function(){
-      var l=b.getAttribute("data-l"); SHOW[l]=!SHOW[l]; b.setAttribute("aria-pressed",SHOW[l]); show(); }; });
+      var l=b.getAttribute("data-l"); SHOW[l]=!SHOW[l]; b.setAttribute("aria-pressed",SHOW[l]);
+      if(l==="track") drawTrack(m,t,m._tw); show(); }; });
     var boat=L.marker([Q[0].lat,Q[0].lon],{icon:icon,interactive:false,keyboard:false,zIndexOffset:-1000}).addTo(m);   // under the harbour mark
     var tau=0, qi=0, playing=false, last=0, raf=0;
+    /* with the full track off, only the last twenty-six minutes of it follow the boat, fading out behind,
+       in the same colours as the route */
+    var TRAIL=26, trail=[];
+    function trailCol(p,q){ return RCOL==="speed"?speedColour(Math.round((p.kn+q.kn)*5)/10):RCOL==="pos"&&p.c!=null?posColour(p.c):mc(t.role); }
+    function drawTrail(head){
+      var pts=[];
+      if(!SHOW.track && tau>0){ for(var j=qi;j>0 && Q[j].mn>tau-TRAIL;j--);
+        for(;j<=qi;j++) if(Q[j].mn>tau-TRAIL-1) pts.push(Q[j]);
+        pts.push(head); }
+      while(trail.length<pts.length-1) trail.push(L.polyline([],{weight:3.4,lineCap:"butt",lineJoin:"round",interactive:false}).addTo(m));
+      trail.forEach(function(l,i){
+        if(i>=pts.length-1){ if(l.getLatLngs().length) l.setLatLngs([]); return; }
+        var a=pts[i], b=pts[i+1], age=tau-(a.mn+b.mn)/2;
+        l.setLatLngs([[a.lat,a.lon],[b.lat,b.lon]]).setStyle({color:trailCol(a,b),opacity:Math.max(0,1-age/TRAIL)}); });
+    }
     function lerpAng(a,b,f){ var d=((b-a)%360+540)%360-180; return (a+d*f+360)%360; }
     /* the boat, seen from above, bow up before rotating to the heading: a dark hull, and the main and jib as
        gently curved strokes in the tack colour, with a pale edge under them so they read over the hull */
@@ -1298,6 +1318,7 @@
       var a=Q[qi], b=Q[qi+1], f=b.mn>a.mn?Math.max(0,Math.min(1,(tau-a.mn)/(b.mn-a.mn))):0;
       var pos=[a.lat+(b.lat-a.lat)*f,a.lon+(b.lon-a.lon)*f], hd=lerpAng(a.hd,b.hd,f), k=a.kn+(b.kn-a.kn)*f, wind=a.w, c=a.c;
       boat.setLatLng(pos); boat.getElement().innerHTML=boatSvg(hd,wind,c);
+      drawTrail({lat:pos[0],lon:pos[1],mn:tau,kn:k,c:c});
       if(field) field.draw(tau);
       if(m._race) m._race(tau>0?t0+tau:null);      // before the replay starts, every mark position shows
       // fixed-width fields (the readout is monospaced), so nothing shifts as the values change
@@ -1329,6 +1350,7 @@
     [].forEach.call(document.querySelectorAll("#sl-detail [data-race]"),function(b){ b.onclick=function(){
       var r=t.races[+b.getAttribute("data-race")]; stop(); tau=Math.max(0,sec(r.start)/60-t0); show(); play(); }; });
     m.on("unload",stop);
+    m._redraw=show;
     show();
   }
   document.addEventListener("keydown",function(e){ if(e.key==="Escape" && SEL) closeVoyage(); });
@@ -1452,13 +1474,13 @@
     // switching only recolours the tracks: maps, the replay and its position all stay as they are
     Array.prototype.forEach.call(document.querySelectorAll("[data-rcol]"),function(b){ b.onclick=function(){
       RCOL=b.getAttribute("data-rcol"); routeKey();
-      for(var k in maps){ if(maps[k]._trip) drawTrack(maps[k],maps[k]._trip,maps[k]._tw); } }; });
+      for(var k in maps){ if(maps[k]._trip) drawTrack(maps[k],maps[k]._trip,maps[k]._tw); if(maps[k]._redraw) maps[k]._redraw(); } }; });
   }
   /* a voyage's route on a map, in the current colour mode; drawn again in place when the mode changes.
      w: [coloured line, halo, role line] widths */
   function drawTrack(m,t,w){
     (m._track||[]).forEach(function(l){ m.removeLayer(l); }); m._track=[]; m._trip=t; m._tw=w;
-    if(!t.poly) return;
+    if(!t.poly || (m._trail && !SHOW.track)) return;      // the replay's trail stands in for it
     var raw=decode(t.poly), cl=colourLine(raw,t,"spd-"+m.getContainer().id,w[0]);
     if(cl) m._track.push(cl.addTo(m));
     else { var pts=smooth(raw);            // the halo goes on the same layer as the route, so it sits underneath it
@@ -1906,8 +1928,16 @@
   Array.prototype.forEach.call(document.querySelectorAll(".sl-tab[data-v]"),function(b){
     b.addEventListener("click",function(){ showView(b.getAttribute("data-v")); hideTip(); }); });
 
+  /* a link like …/sailing/#sail-17 opens that sail */
+  function linkedSail(){
+    var n=/^#sail-(\d+)$/.exec(location.hash), no=n&&sailNumbers();
+    for(var k in no) if(no[k]===+n[1]) return k;
+    return null;
+  }
+  window.addEventListener("hashchange",function(){ var k=linkedSail(); if(D && k && k!==SEL) goVoyage(k); });
   fetch("data.json?t="+Date.now()).then(function(r){return r.json();}).then(function(j){
-    D=j; applyTheme(root.getAttribute("data-mode")||"auto"); showView("all");
+    D=j; applyTheme(root.getAttribute("data-mode")||"auto");
+    var k=linkedSail(); if(k) goVoyage(k); else showView("all");
   }).catch(function(){ document.getElementById("sl-foot").textContent="Could not load data.json — serve this folder over http."; });
 })();
 </script>
