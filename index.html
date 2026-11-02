@@ -1268,9 +1268,9 @@
       if(l==="track") drawTrack(m,t,m._tw); show(); }; });
     var boat=L.marker([Q[0].lat,Q[0].lon],{icon:icon,interactive:false,keyboard:false,zIndexOffset:-1000}).addTo(m);   // under the harbour mark
     var tau=0, qi=0, playing=false, last=0, raf=0;
-    /* with the full track off, only the last twenty-six minutes of it follow the boat, fading out behind,
+    /* with the full track off, only the last thirty-nine minutes of it follow the boat, fading out behind,
        in the same colours as the route */
-    var TRAIL=26, trail=[];
+    var TRAIL=39, trail=[];
     function trailCol(p,q){ return RCOL==="speed"?speedColour(Math.round((p.kn+q.kn)*5)/10):RCOL==="pos"&&p.c!=null?posColour(p.c):mc(t.role); }
     function drawTrail(head){
       var pts=[];
