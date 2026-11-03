@@ -244,10 +244,10 @@
   #sl-pread{display:flex;flex-wrap:wrap;column-gap:1ch;font-variant-numeric:tabular-nums}
   #sl-pread span{white-space:pre}
   #sl-psun svg{display:block}
-  .sl-pkey{display:inline-flex;align-items:center;gap:5px;color:var(--ink-2)}
+  .sl-pkey{display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px;color:var(--ink-2);min-width:0}
   .sl-pkey svg{margin-left:6px}
   .sl-cramp{display:inline-block;width:34px;height:7px;border-radius:2px;margin-right:6px;background:linear-gradient(90deg,rgba(150,178,232,.08),rgba(40,70,192,.5))}
-  .sl-play .sl-ltog{display:inline-flex;align-items:center;border-radius:14px;padding:0 10px;font-size:10.5px;color:var(--ink-2)}
+  .sl-play .sl-ltog{display:inline-flex;align-items:center;white-space:nowrap;border-radius:14px;padding:0 10px;font-size:10.5px;color:var(--ink-2)}
   .sl-play .sl-ltog[aria-pressed=false]{opacity:.45;text-decoration:line-through}
   .sl-boat{background:none;border:0}
   .sl-collapse{width:32px;height:32px;font-size:16px;top:10px;right:10px}
@@ -268,7 +268,7 @@
   .sl-races button{font:inherit;color:var(--ink);background:none;border:1px solid var(--rule);border-radius:10px;padding:0 7px;cursor:pointer}
   .sl-races button:hover{border-color:var(--ink-2)}
   @media (max-width:760px){
-    .sl-dbody{grid-template-columns:1fr}
+    .sl-dbody{grid-template-columns:minmax(0,1fr)}
     .sl-dmap{height:300px}
     .sl-dinfo{border-left:0;border-top:1px solid var(--rule-2)}
     .sl-dtitle{font-size:19px}
