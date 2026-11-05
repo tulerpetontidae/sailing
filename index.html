@@ -88,7 +88,8 @@
   .sl-eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.66}
   .sl-title{font-family:var(--disp);font-weight:800;font-size:clamp(44px,9vw,76px);line-height:.9;margin:10px 0 0}
   .sl-sub{font-size:13.5px;opacity:.8;margin-top:10px;max-width:62ch}
-  .sl-facts{display:flex;flex-wrap:wrap;gap:26px;margin-top:22px}
+  .sl-facts{display:flex;flex-wrap:wrap;gap:26px;margin-top:22px;max-width:calc(100% - min(46%,440px) - 24px)}
+  @media (max-width:760px){ .sl-facts{max-width:none} }
   .sl-fact{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;opacity:.62}
   .sl-fact b{display:block;font-family:var(--disp);font-weight:800;font-size:30px;letter-spacing:0;opacity:1;margin-top:2px}
   .sl-fact small{display:block;font-size:9.5px;letter-spacing:.08em;margin-top:1px;text-transform:none}
@@ -287,6 +288,32 @@
   .sl-mini .c .sl-bf{display:inline-flex;margin-top:1px;color:var(--ink-2)}
   .sl-nomap{height:150px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
 
+  /* racing */
+  .sl-ser{margin-top:20px}
+  .sl-ser h3{font-family:var(--disp);font-weight:800;font-size:19px;margin:0}
+  .sl-sermeta{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin:3px 0 0}
+  .sl-season{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));width:calc((100% + 2px) * var(--n) / 6 - 2px);min-width:min(100%,300px);gap:2px;margin-top:10px;border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--rule)}
+  .sl-rday{display:flex;flex-direction:column;justify-content:flex-start;background:var(--paper);padding:11px 12px 12px;font:inherit;color:inherit;text-align:left;border:0;min-width:0}
+  .sl-rday .dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .sl-rday .k{display:block;font-family:var(--disp);font-weight:800;font-size:19px;line-height:1.1;margin-top:3px}
+  .sl-rday .st{height:15px;display:flex;align-items:center;gap:6px;margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .sl-rday .st i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted-d);flex:none}
+  .sl-rday.next .st{color:var(--ink-2)}
+  .sl-rday.next .st i{border-color:var(--ink-2)}
+  .sl-rday.done .st{color:var(--ink)}
+  .sl-rday.done .st i{background:var(--ink);border-color:var(--ink)}
+  .sl-rday.done .st b{font-family:var(--disp);font-weight:800;font-size:15px;line-height:13px}
+  .sl-rday .pos{display:block;margin-top:8px;padding-top:7px;border-top:1px solid var(--rule-2);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .sl-rday .pos b{display:block;font-family:var(--sans,inherit);font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:600;margin-top:2px}
+  .sl-rday .pos b.tbd{color:var(--muted-d);font-weight:400;font-style:italic}
+  button.sl-rday{cursor:pointer}
+  button.sl-rday:hover{background:var(--rule-2)}
+  .sl-rnext{font-family:var(--mono);font-size:11px;color:var(--ink-2);margin:10px 0 0}
+  .sl-racetag{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--ink-2);color:var(--ink-2);border-radius:2px;padding:0 4px;margin-left:8px;vertical-align:1px}
+  @media (max-width:760px){
+    .sl-season{grid-template-columns:repeat(min(var(--n),3),minmax(0,1fr));width:calc((100% + 2px) * min(var(--n),3) / 3 - 2px)}
+  }
+
   /* records */
   .sl-recs{margin-top:12px;border-top:1px solid var(--rule)}
   .sl-rec{display:grid;grid-template-columns:110px 1fr 110px 200px 28px;gap:4px 24px;padding:12px 0;border-bottom:1px solid var(--rule-2);position:relative}
@@ -350,7 +377,7 @@
   <div class="sl-hero">
     <div class="sl-eyebrow" id="sl-range">—</div>
     <h1 class="sl-title">Sailing log</h1>
-    <p class="sl-sub">Licensed ASA 103. Mostly sailing Catalina 30s out of Sausalito on SF Bay.</p>
+    <p class="sl-sub">Licensed ASA 103. Mostly sailing on SF Bay.</p>
     <figure class="sl-art"><div class="sl-artbox" id="sl-art" aria-hidden="true"></div>
       <figcaption><b>Voyage map.</b> Threads tracing my past sails across the bay.</figcaption></figure>
     <div class="sl-facts" id="sl-facts"></div>
@@ -400,6 +427,12 @@
       <div class="sl-condkey" id="sl-condkey"></div></div>
     <div class="sl-pane" id="pane-heat" hidden><div class="sl-map" id="map-heat"></div>
       <div class="sl-legend"><span>Minutes on the water per hex</span><span class="sl-ramp" id="sl-hramp"></span><span id="sl-hmax"></span></div></div>
+  </div>
+
+  <div class="sl-card" id="sl-racing" hidden>
+    <h2 class="sl-h">Racing</h2>
+    <p class="sl-p">List of racing series I participated in or committed to.</p>
+    <div id="sl-series"></div>
   </div>
 
   <div class="sl-card">
@@ -482,7 +515,46 @@
       '<div class="sl-fact">Days on the water<b>'+T.length+'</b></div>'+
       '<div class="sl-fact">Hours on the water<b>'+hrs.toFixed(1)+'</b></div>'+
       '<div class="sl-fact">As skipper<b>'+sk.toFixed(1)+'h</b><small>'+Math.round(sk/hrs*100)+'% of hours</small></div>'+
-      '<div class="sl-fact">Nautical miles<b>'+Math.round(nm)+'</b></div>';
+      '<div class="sl-fact">Nautical miles<b>'+Math.round(nm)+'</b></div>'+
+      raceFact();
+  }
+  function raceFact(){
+    var S=seriesList(), races=D.trips.filter(isRace); if(!S.length && !races.length) return "";
+    var cur=S.filter(function(s){ return s.days.some(function(d){ return !raceTrip(d); }); })[0], sub="";
+    if(cur){ var sr=cur.days.filter(function(d){ return d.kind==="race"; }), done=sr.filter(function(d){ return raceTrip(d); }).length;
+      sub=done?done+" of "+sr.length+" in "+cur.name.replace(/^BYC Sunday /,""):cur.name.replace(/^BYC Sunday /,"")+" from "+dd(sr[0].date).getDate()+" "+MON[dd(sr[0].date).getMonth()]; }
+    return '<div class="sl-fact">Races<b>'+races.length+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>';
+  }
+
+  /* ---------- racing ---------- */
+  function seriesList(){ return (D.racing&&D.racing.series)||[]; }
+  function seriesDay(date){ var S=seriesList(); for(var s=0;s<S.length;s++) for(var i=0;i<S[s].days.length;i++) if(S[s].days[i].date===date) return S[s].days[i]; return null; }
+  function isRace(t){ var d=t.date&&seriesDay(t.date); return !!(t.race || (d && d.kind==="race")); }
+  function raceTrip(day){ for(var i=0;i<D.trips.length;i++) if(D.trips[i].date===day.date) return D.trips[i]; return null; }
+  function ordinal(n){ var s=["th","st","nd","rd"], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+  function placeText(r){ return r.place?ordinal(r.place)+(r.fleet?" of "+r.fleet:""):(r.result||"sailed"); }
+  function drawRacing(){
+    var S=seriesList(), card=document.getElementById("sl-racing"); if(!S.length){ card.hidden=true; return; } card.hidden=false;
+    var no=sailNumbers(), today=new Date(); today.setHours(0,0,0,0);
+    document.getElementById("sl-series").innerHTML=S.map(function(s,si){
+      var next=null, n=s.days.length;
+      var cells=s.days.map(function(d){
+        var t=raceTrip(d), day=dd(d.date), when=day.getDate()+" "+MON[day.getMonth()], lab=d.kind==="race"?(n>2||d.n>1?"Race "+d.n:"Race"):"Practice", st, cls="";
+        if(t){ cls=" done"; st=t.race?'<i></i><b>'+placeText(t.race)+'</b>':'<i></i>sailed'; }
+        else if(day>=today && !next){ next=d; cls=" next"; st='<i></i>next'; }
+        else st=day<today?'<i></i>no record':'<i></i>upcoming';
+        var pos='<span class="pos">Position <b'+(d.pos?'>'+d.pos:' class="tbd">to be set')+'</b></span>';
+        var inner='<span class="dt">'+when+'</span><span class="k">'+lab+'</span><span class="st">'+st+'</span>'+pos;
+        return t && no[t.key]?'<button type="button" class="sl-rday'+cls+'" data-k="'+t.key+'" title="Open Sail '+no[t.key]+'">'+inner+'</button>'
+                             :'<div class="sl-rday'+cls+'">'+inner+'</div>';
+      }).join("");
+      var nx="";
+      if(next){ var dn=Math.round((dd(next.date)-today)/864e5), nl=next.kind==="race"?"race "+next.n:"practice";
+        nx='<p class="sl-rnext">Next: '+nl+(dn===0?" today":dn===1?" tomorrow":" in "+dn+" days")+" · "+DOW[dd(next.date).getDay()]+" "+dd(next.date).getDate()+" "+MON[dd(next.date).getMonth()]+(s.start?", "+s.start+"–"+s.end:"")+'</p>'; }
+      return '<div class="sl-ser"><h3>'+s.name+'</h3><p class="sl-sermeta">'+s.type+' '+s.boat+(s.when?' · '+s.when:'')+'</p>'+
+        '<div class="sl-season" style="--n:'+n+'">'+cells+'</div>'+nx+'</div>';
+    }).join("");
+    Array.prototype.forEach.call(document.querySelectorAll("#sl-series button.sl-rday"),function(b){ b.onclick=function(){ goVoyage(b.getAttribute("data-k")); }; });
   }
 
   /* ---------- role bar ---------- */
@@ -1593,7 +1665,7 @@
         '<div class="d">'+(no[t.key]?'<span class="no">Sail '+no[t.key]+'</span>':'')+(t.date?fdate(t.date)+'<small>'+dd(t.date).getFullYear()+(t.start?' · '+((t.approx||[]).indexOf("start")>=0?'~':'')+t.start:'')+'</small>':'date to add<small>2026</small>')+
           (cum[t.key]?'<span class="cum">Σ '+Math.round(cum[t.key])+' h on water</span>':'')+'</div>'+
         '<div class="t"><b>'+(t.title||boatName(t))+'</b><span class="role"><i style="background:'+rc(t.role)+'"></i>'+RNAME[t.role]+
-          ((t.assumed||[]).indexOf("role")>=0?' (assumed)':'')+'</span>'+
+          ((t.assumed||[]).indexOf("role")>=0?' (assumed)':'')+'</span>'+(isRace(t)?'<span class="sl-racetag">Race</span>':'')+
           (t.title?'<p>'+t.type+'</p>':'')+
           ((t.club||t.aboard)?'<p>'+[t.club,(t.aboard?t.aboard+' aboard'+(t.aboardNote?' ('+t.aboardNote+')':''):'')].filter(Boolean).join(' · ')+(area?' · '+area:'')+'</p>':(area?'<p>'+area+'</p>':''))+
           (t.note?'<p>'+t.note+'</p>':'')+'</div>'+
@@ -1911,7 +1983,7 @@
   function drawScopes(){
     scopeButtons(document.getElementById("sl-wscope"),WSCOPE,function(v){ WSCOPE=v; drawScopes(); resetMaps(); },{all:"Whole bay"});
   }
-  function drawAll(){ drawHead(); drawScopes(); drawArt(); drawRoles(); drawCal(); drawConditions(); drawRecs(); drawBfGuide(); }
+  function drawAll(){ drawHead(); drawScopes(); drawArt(); drawRoles(); drawCal(); drawConditions(); drawRacing(); drawRecs(); drawBfGuide(); }
 
   /* ---------- theme ---------- */
   var sysDark=window.matchMedia?matchMedia("(prefers-color-scheme:dark)"):null;
