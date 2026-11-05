@@ -1,0 +1,30 @@
+{
+  "series": [
+    {
+      "name": "BYC Sunday Chowder Series",
+      "club": "Berkeley Yacht Club",
+      "boat": "Resolute",
+      "type": "J/105",
+      "when": "Sundays 11:00–16:00, out of Berkeley",
+      "start": "11:00", "end": "16:00",
+      "days": [
+        {"date": "2027-01-10", "kind": "practice", "pos": null},
+        {"date": "2027-01-24", "kind": "race", "n": 1, "pos": null},
+        {"date": "2027-02-07", "kind": "race", "n": 2, "pos": null},
+        {"date": "2027-02-21", "kind": "race", "n": 3, "pos": null},
+        {"date": "2027-03-07", "kind": "race", "n": 4, "pos": null},
+        {"date": "2027-03-21", "kind": "race", "n": 5, "pos": null}
+      ]
+    },
+    {
+      "name": "Intro to racing",
+      "boat": "Nirvana",
+      "type": "J/105",
+      "when": "out of Berkeley · friendly race against J/105 Resolute",
+      "days": [
+        {"date": "2026-10-31", "kind": "practice", "pos": "Rotating"},
+        {"date": "2026-11-01", "kind": "race", "n": 1, "pos": "Rotating"}
+      ]
+    }
+  ]
+}

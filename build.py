@@ -529,6 +529,9 @@ def main():
     data = {"generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "areas": [{"name": a[0], "lat": a[1], "lon": a[2]} for a in AREAS], "harbour": harbour,
             "harbours": list(harbours.values()), "trips": out}
+    # the race series: its schedule, written by hand; sails on those days are its results
+    if os.path.exists("racing.json"):
+        data["racing"] = json.load(open("racing.json"))
     # a rough shoreline for the header sketch (OpenStreetMap coastline, pre-simplified),
     # and the same coast closed into land areas so the header can tint the shallows
     if os.path.exists("coast.json"):

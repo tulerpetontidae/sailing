@@ -301,6 +301,7 @@
   "ft": 35,
   "role": "student",
   "club": "Friendly race vs Resolute",
+  "race": {"place": 1, "fleet": 2},
   "home": "Berkeley Marina",
   "aboard": 7,
   "aboardNote": "6 + instructor",
